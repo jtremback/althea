@@ -34,9 +34,16 @@ In this paper we refer to ad-hoc "mesh" routing protocols. This type of protocol
 
 where `f` is the routing protocol, `address` is the address of the destination, and `nextHop` is the optimal peer to route a packet with a given address to.
 
-
 #### Payment channel
+Payment channels are a cryptocurrency technology which allow nodes to exchange funds without putting all transactions on the blockchain. Transactions take the form of IOUs which are updated with the current account balance between two nodes. These IOUs are only put on the global blockchain if there is a dispute or one of the nodes disappears. This allows a network of channels to process an almost unlimited number of transactions.
 
+#### Hashlock
+A hashlock transaction is a type of channel transaction that uses the hash of a secret to lock a transaction. The transaction is created with the hash, and can only be unlocked with the corresponding secret.
+
+#### Peer ranking algorithm
+This is an algorithm that ranks peers based on their past reliability and the amount they are willing to pay per packet. It is a part of the system, however, it is not specified here. It is in a node's direct financial interest to use the best peer ranking algorithm possible. We expect that there will be an active ecosystem of different algorithms. We model it as:
+
+`f(address) -> `
 
 ### High level overview
-Nodes maintain edges with other nodes. An edge consists of a wired or wireless connection, over which there is a payment channel[1] between the nodes. A node connected to another node by an edge is referred to as a **peer** of that node. Each node stores information about the other nodes it is connected to.  The channel can be updated
+Nodes maintain edges with other nodes. An edge consists of a wired or wireless connection, over which there is a payment channel between the nodes. Each node stores information about the other nodes it is connected to. When a node wishes to send a packet to some destination it generates a hashlock secret and the corresponding hash. It encrypts the hashlock secret with the destination's public key and places it in the packet header along with the hashlock hash. It then consults its routing protocol to find the node most likely to
