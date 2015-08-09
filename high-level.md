@@ -40,6 +40,10 @@ Payment channels are a cryptocurrency technology which allow nodes to exchange f
 #### Hashlock
 A hashlock transaction is a type of channel transaction that uses the hash of a secret to lock a transaction. The transaction is created with the hash, and can only be unlocked with the corresponding secret.
 
+
+
+// Probably uneccesary thanks anthony
+// Maybe actually neccesary
 #### Peer ranking algorithm
 This is an algorithm that ranks peers based on their past reliability and the amount they are willing to pay per packet. It is a part of the system, however, it is not specified here. It is in a node's direct financial interest to use the best peer ranking algorithm possible. We expect that there will be an active ecosystem of different algorithms. We model it as:
 
@@ -47,3 +51,64 @@ This is an algorithm that ranks peers based on their past reliability and the am
 
 ### High level overview
 Nodes maintain edges with other nodes. An edge consists of a wired or wireless connection, over which there is a payment channel between the nodes. Each node stores information about the other nodes it is connected to. When a node wishes to send a packet to some destination it generates a hashlock secret and the corresponding hash. It encrypts the hashlock secret with the destination's public key and places it in the packet header along with the hashlock hash. It then consults its routing protocol to find the node most likely to
+
+
+# Draft 3
+
+Incentived routing.
+
+We want to design a system that will allow transmitters of data to be compensated in a decentralized manner. The goal is for paries who want to to send data to pay into the system, while parties that are providing the service of transmitting pull money out.
+
+Currently the internet consists of two seperate systems- the network that moves data around with wires and radio, and the collection of contracts and agreements that pay for it. The fact that it is generally only possible to pay for internet access with contracts and service agreements greatly favors large monopolies.
+
+
+mini-isp
+
+The existing internet works because ISPs have agreements with one another to route data. The end user has an agreement with their ISP that they will pay an amount of money to send packets to, and recieve packets from the entire internet.
+
+The ISP has agreements with other ISPs to route traffic to the entire internet. The functioning and traffic of the network is continually monitored by employees of the ISP and disputes are resolved between people and in court.
+
+A decentralized system will not have the benefit of network adminstrators and lawyers in each node.
+
+
+per-packet
+
+I will start with a simple protocol with serious shortcomings, and correct vulnerabilities and flaws in it iteratively.
+
+v1
+Each node maintains a channel between it and every one of its peers. When sending or forwarding a packet to an upstream node, the node attaches a payment transaction to it. The channel between the nodes is updated with this transaction.
+
+In a world full of honest nodes, this works.
+
+
+
+### Mini ISP
+
+- maybe a connection based protocol is better
+- the channel is essentially a connection
+- both nodes meter traffic sent
+- payments must not be per packet
+- if they disagree on the amount of traffic sent, the channel can just deal with that disagreement
+- payments can be for whole KBs
+- there can be a margin of fuzziness
+- node must have a way to assess the reliability of each peer
+- client node must have reliable peers for a good UX/use case etc
+- intermediary node must have reliable peers, or its peers will not forward packets to it.
+- as long as nodes can reasonably rank peers on reliability, and do not forward to unreliable nodes, the network should be good.
+- Granular, per packet routing is done by the routing algorithm, but our algorithm can still blacklist unreliable peers to avoid wasting money.
+- rating can happen with random sampling etc
+- sender and receiver coordinate via a somewhat seperate protocol to assess the quality of the connection.
+- the difficulty lies in associating a low-quality connection to any specific peer in order to blacklist them.
+- wait... isn't that what the routing protocol does?
+
+
+### Pay to receive
+
+- nodes pay to receive data
+- isnt this vulnerable to DOS?
+- a node can refuse to pay for junk packets
+- this seems inferior
+- pay to send is not vulnerable to DOS, unlike the internet. cool.
+
+
+### Basic
