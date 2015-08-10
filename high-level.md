@@ -76,10 +76,10 @@ per-packet
 I will start with a simple protocol with serious shortcomings, and correct vulnerabilities and flaws in it iteratively.
 
 v1
-Each node maintains a channel between it and every one of its peers. When sending or forwarding a packet to an upstream node, the node attaches a payment transaction to it. The channel between the nodes is updated with this transaction.
+Each node maintains a channel between it and every one of its peers. When sending or forwarding a packet to a peer, the node attaches a payment transaction to it. The channel between the nodes is updated with this transaction. If a node is dropping packets, the routing algorithm will not route through it.
 
-In a world full of honest nodes, this works.
-
+v0
+Each node maintains a channel between it and every one of its peers, and meters the amount of data sent and recieved from it. periodically
 
 
 ### Mini ISP
@@ -111,4 +111,8 @@ In a world full of honest nodes, this works.
 - pay to send is not vulnerable to DOS, unlike the internet. cool.
 
 
-### Basic
+### Node chains
+
+- Nodes publish state on their personal blockchains
+- The merklelized state of everything they've been doing and everything their peers have been doing.
+-
