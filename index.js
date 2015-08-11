@@ -157,11 +157,18 @@ class Node {
     this.peers = opts.peers
     this.routes = opts.routes
     this.pings = opts.pings
+    this.stats = {
+      forwardedTo: {
+      //   A: {
+      //     B: 10
+      //   }
+      }
+    }
   }
 
   recieve (message, peerFrom) {
     if (message.header.destinationAddress === this.id) {
-      console.log(this.id, 'recieved', message.body, 'from', message.header.sourceAddress, 'via', peerFrom)
+      // console.log(this.id, 'recieved', message.body, 'from', message.header.sourceAddress, 'via', peerFrom)
     } else {
       // Forward along
       this.send(message, peerFrom)
@@ -174,7 +181,16 @@ class Node {
 
     if (peerFrom) {
       console.log('forwarding message from ' + peerFrom + ' to ' + peerTo)
+      // Log forwarding stats
+      if (!this.stats.forwardedTo[peerTo]) {
+        this.stats.forwardedTo[peerTo] = {}
+      }
+      if (!this.stats.forwardedTo[peerTo][peerFrom]) {
+        this.stats.forwardedTo[peerTo][peerFrom] = 0
+      }
+      this.stats.forwardedTo[peerTo][peerFrom] = this.stats.forwardedTo[peerTo][peerFrom] + 1
     }
+
 
     // Send to peer
     nodes[peerTo].recieve(message, this.id)
@@ -193,6 +209,10 @@ class Node {
       }
     }
   }
+
+  getStats () {
+    return this.stats
+  }
 }
 
 
@@ -206,4 +226,8 @@ makeNodes(nodes)
 
 for (let key in nodes) {
   nodes[key].pingPeers()
+}
+
+for (let key in nodes) {
+  console.log(nodes[key].getStats())
 }
