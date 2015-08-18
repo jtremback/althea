@@ -1,11 +1,20 @@
+
+
 # Draft 1
+
+Goals:
+
+- Nodes are able to collect payment to incentivize the creation of links
+- Nodes sending packets pay for what they send
+- Cheaper nodes for a given route are prioritized, ensuring a competitive market and avoiding exploits
+- (optional) Nodes can pay more for prioritization over other traffic
 
 All nodes are connected in a network. To send a piece of data from one node to another, a route must be found through the network. At any given time, a node participating in the network is either an receiver (the ultimate destination of the packet), a sender (the originator of the packet), or an intermediary node.
 
 
 ### Customer satisfaction (Jae)
 
-Nodes connect to the nodes around them, they pay upstream nodes to route packets. They are payed to route packets from downstream. The routing algorithm tells the node where to send the packet. The node either loses money or profits based on how expensive the chosen upstream node is vs how much it recieved from the downstream node. Nodes can then adjust the prices they charge specific downstream nodes based on prior profitability of that downstream.
+Nodes connect to the nodes around them, they pay downstream nodes to route packets. They are payed to route packets from upstream. The routing algorithm tells the node where to send the packet. The node either loses money or profits based on how expensive the chosen downstream node is vs how much it recieved from the upstream node. Nodes can then adjust the prices they charge specific upstream nodes based on prior profitability of that upstream.
 
 
 ### Connecting the circuit (Zack)
@@ -20,7 +29,7 @@ encrypted box:
 hashlock secret
 payload
 
-Each peer along the route takes note of the hashlock secret's hash. It uses the hashlock secret's hash to update a channel with its upstream peer, placing payment for the route in escrow. When the receiver receives the packet, it decrypts the packet and passes the hashlock secret back downstream. The downstream nodes can use the hashlock secret to open the hashlock and get their payment. This way, if a packet is dropped, the sender does not pay for the route. Nodes evaluate peers based on their price and reliability. A node is incentivized to route packets to the lowest priced, most reliable node in order to get payed.
+Each peer along the route takes note of the hashlock secret's hash. It uses the hashlock secret's hash to update a channel with its downstream peer, placing payment for the route in escrow. When the receiver receives the packet, it decrypts the packet and passes the hashlock secret back upstream. The upstream nodes can use the hashlock secret to open the hashlock and get their payment. This way, if a packet is dropped, the sender does not pay for the route. Nodes evaluate peers based on their price and reliability. A node is incentivized to route packets to the lowest priced, most reliable node in order to get payed.
 
 
 # Draft 2
@@ -115,4 +124,85 @@ Each node maintains a channel between it and every one of its peers, and meters 
 
 - Nodes publish state on their personal blockchains
 - The merklelized state of everything they've been doing and everything their peers have been doing.
--
+
+
+### Shopkeeper
+
+- Nodes pay downstream nodes for for forwarding
+- They charge their upstream nodes in proportion to the downstream nodes that they are forwarding to.
+- For example:
+
+```
+A   D
+ \ / D100
+  C
+ / \ D10
+B   E
+```
+
+C is forwarding data for A and B, to D and E.
+D charges D100 per kb. E charges D10 per kb. C wants to make D20 profit per kb.
+A is sending 10 kb on a route going through D, and 90 kb on a route going through E.
+B is sending 90 kb on a route going through D, and 10 kb on a route going through E.
+C is forwarding 100kb to D at a cost of D10000, and 100kb through E at a cost of D1000
+C charges A D1000 + D900
+C charges B D9000 + D100
+Corresponding to their usage of various downstream costs
+
+### Mordor problem
+
+```
+A       D
+ \     / D100
+  C---F
+ /     \ D10
+B       E
+```
+Now there are additional nodes in the path, and the information about who is using what cost of link is lost. A now subsidizes B's expensive link. This attribute can be used to exploit the network by sending traffic to expensive links that you control. "Source cost" information must be backpropagated somehow. Any lag in backpropagation can result in other nodes temporarily subsidizing expensive links as the cost information propagates back.
+
+There must be some way to propagate back source (or destination?) cost information, and stop the period where it is lagging from allowing nodes to subsidize link costs that they did not incur.
+
+
+Model fully working system:
+- Nodes have a table (Ta) of prices that they must pay downstream peers for packets from given sources.
+- Nodes have a table (Tb) of prices that they are charging upstream peers for packets from given sources. This is derived from the table above by adding a markup.
+- Packets coming from sources not in Tb will be charged at a fixed rate
+- As soon as one packet from a source has passed through a node, the price payed for it is entered in Ta, updating Tb.
+
+Destination?
+- Nodes have a table (Ta) of prices that they must pay downstream peers for packets going to given destinations.
+- Nodes have a table (Tb) of prices that they are charging upstream peers for packets going to given destinations. This is derived from the Ta above by adding a markup.
+- Packets coming from sources not in Ta will be charged at a fixed rate. This may vary between nodes.
+- As soon as one packet from a source has passed through a node, the price payed for it is entered in Ta, updating Tb.
+
+
+
+### Talk with Anthony
+
+- Come up with backpropagation of source cost data
+- System is basically lagging feedback
+- Think of it as a fully running system and model a change
+
+- Solve exploits with blockchain/staking techniques
+
+- Exploit: Switch routes quickly, routing to expensive nodes to force "subsidies", before the system can adjust
+  - Possible solution: Staking, and punishment for cheating?
+
+- Exploit: Fool routing algorithm to look better than you are
+  - Have to figure out what the exploits are.
+  - Possible solution: Not sure, although it seems relatively easy to detect... how to avoid writing own routing algorithm?
+
+### Talk with Marc
+
+- Is into the communitarian vision of the internet and everything sudo.
+- Outlook is admirable.
+- Finds technical challenge of incentivized routing interesting.
+- Told me that even Babel has to store all addresses in memory and will not scale to internet size
+- Subnets must be used to do that.
+- Babel also has no security on route updates
+- Could really use some help with cryptocurrency type consensus stuff- have Jae talk to him.
+
+
+### More high level Aug 17th
+
+Each node has list of prices that it charges to forward packets from specific sources. This list is distributed to all its peers. It also maintains a payment channel with each of its peers
