@@ -203,6 +203,35 @@ Destination?
 - Could really use some help with cryptocurrency type consensus stuff- have Jae talk to him.
 
 
-### More high level Aug 17th
+### Split the fee
 
-Each node has list of prices that it charges to forward packets from specific sources. This list is distributed to all its peers. It also maintains a payment channel with each of its peers
+In split the fee, nodes append their address to any packets they forward.
+The receiver of the packet then pays the forwarding nodes, dividing the fee
+among them equally.
+
+Pros:
+- Simple
+- Easy to make it work in a basic sense
+
+Cons:
+- Several gaping security holes
+  - Nodes could append sybil addresses or route unesecarily
+  - Destination node could just not pay
+  - These issues could possibly be mitigated
+- Since fee is split evenly, expensive links may not be rewarded sufficiently
+- Needs to be some kind of natural renegotiation thing
+
+### Shopkeeper
+
+A market-like system where nodes pay their downstream peers to forward a packet.
+Naive system where upstream peers are charged according to average downstream expense of forwarding their packets leads to a situation where some source nodes end up subsidizing the packets of others. There needs to be some kind of system to pay by source or destination to make sure that source nodes are paying the appropriate amount.
+
+### Shopkeeper modification
+
+Each node keeps a table of the prices it charges to forward packets to certain destinations. A packet comes to a node with payment attached in the form of a channel transaction. The node checks the routing algorithm to determine which peer to send it to. It then checks the price table to determine whether the payment is enough. If the payment is not sufficient, the packet is dropped and refund is sent to the upstream peer with a notice of the appropriate payment.
+
+When a node receives such a notice, it adjusts its price to a destination accordingly, and sends more money with the next packet.
+
+If a given peer's cost to a certain destination is too much more than what other peers are charging, it is no longer forwarded packets to there.
+
+An alternate system in the same vein is to keep a table prices for destinations via peer. This could be odd because upstream peers could see sudden price shifts etc. Not entirely sure what the benefit is. Worth exploration.
