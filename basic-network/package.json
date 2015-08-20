@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "mkdir -p dist & watchify -v -t babelify -d index.js -o dist/bundle.js & http-server . -p 4256 > /dev/null"
+    "start": "mkdir -p dist & watchify -v -t babelify -d index.js -o dist/bundle.js & http-server . -p 4456 > /dev/null"
   },
   "dependencies": {},
   "devDependencies": {
@@ -53,6 +53,7 @@
       "curly": 2,
       "camelcase": 0,
       "no-unused-vars": 1,
+      "no-constant-condition": 0,
       "no-unused-expressions": 0,
       "quotes": [
         2,

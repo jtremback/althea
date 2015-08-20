@@ -128,24 +128,24 @@ class Node {
       console.log(this.id, 'recieved', message, 'via', peerFrom)
     } else {
       // Forward along
-      this.send(message, peerFrom)
+      this._send(message, peerFrom)
     }
   }
 
-  send (message, peerFrom) {
+  _send (message, peerFrom) {
     // Get peer for destinationAddress
     let peerTo = graph.findShortestPath(this.id, message.header.destinationAddress)[1]
 
     if (peerFrom) { // Then this is being forwarded for another node.
       console.log('forwarding message from ' + peerFrom + ' to ' + peerTo)
-      this.logForward(peerFrom, peerTo)
+      this._logForward(peerFrom, peerTo)
     }
 
     // Send to peer
     nodes[peerTo].recieve(message, this.id)
   }
 
-  logForward (peerFrom, peerTo) {
+  _logForward (peerFrom, peerTo) {
     // Log forwarding stats
     if (!this.stats.forwardedTo[peerTo]) {
       this.stats.forwardedTo[peerTo] = {}
@@ -159,7 +159,7 @@ class Node {
   pingPeers () {
     for (let id in this.pings) {
       for (let i = 0; i < this.pings[id]; i++) {
-        this.send({
+        this._send({
           header: {
             destinationAddress: id,
             sourceAddress: this.id

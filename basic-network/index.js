@@ -1,30 +1,9 @@
-// This simulation consists of a small network of nodes, each node randomly
-// pings other nodes in a fixed proportion. So for example, node B may ping
-// node E 40% of the time, and node D 60% of the time. Some of the nodes are
-// not directly connected, so a naive routing algorithm is used.
-//
-// The output, for each node, is a list of the node's peers, along with number
-// of pings forwarded to other peers. For example, node E might
-// have an output like this:
-//
-// Node E:
-//   Peer B: 12 pings to D, 9 pings to G
-//   Peer D: 5 pings to B, 9 pings to G
-//   Peer G: 0 pings to D, 30 pings to B
+import Graph from './djikstra.js'
 
 let nodes = {
   A: {
     peers: {
-      C: { cost: 0 }
-    },
-    routes: {
-      A: null,
-      B: 'C',
-      C: 'C',
-      D: 'C',
-      E: 'C',
-      F: 'C',
-      G: 'C',
+      C: { distance: 20 }
     },
     pings: {
       E: 3,
@@ -33,17 +12,8 @@ let nodes = {
   },
   B: {
     peers: {
-      E: { cost: 0 },
-      D: { cost: 0 },
-    },
-    routes: {
-      A: 'D',
-      B: null,
-      C: 'D',
-      D: 'D',
-      E: 'E',
-      F: 'D',
-      G: 'E'
+      E: { distance: 25 },
+      D: { distance: 8 },
     },
     pings: {
       A: 4,
@@ -52,17 +22,8 @@ let nodes = {
   },
   C: {
     peers: {
-      A: { cost: 0 },
-      D: { cost: 0 },
-    },
-    routes: {
-      A: 'A',
-      B: 'D',
-      C: null,
-      D: 'D',
-      E: 'D',
-      F: 'D',
-      G: 'G'
+      A: { distance: 20 },
+      D: { distance: 15 },
     },
     pings: {
       D: 8,
@@ -71,19 +32,10 @@ let nodes = {
   },
   D: {
     peers: {
-      B: { cost: 0 },
-      C: { cost: 0 },
-      E: { cost: 0 },
-      F: { cost: 0 },
-    },
-    routes: {
-      A: 'C',
-      B: 'B',
-      C: 'C',
-      D: null,
-      E: 'E',
-      F: 'F',
-      G: 'F'
+      B: { distance: 8 },
+      C: { distance: 15 },
+      E: { distance: 13 },
+      F: { distance: 11 },
     },
     pings: {
       C: 4,
@@ -92,18 +44,10 @@ let nodes = {
   },
   E: {
     peers: {
-      B: { cost: 0 },
-      D: { cost: 0 },
-      G: { cost: 0 },
-    },
-    routes: {
-      A: 'D',
-      B: 'B',
-      C: 'D',
-      D: 'D',
-      E: null,
-      F: 'D',
-      G: 'G'
+      B: { distance: 25 },
+      D: { distance: 13 },
+      F: { distance: 20 },
+      G: { distance: 10 },
     },
     pings: {
       F: 5,
@@ -112,18 +56,9 @@ let nodes = {
   },
   F: {
     peers: {
-      D: { cost: 0 },
-      E: { cost: 0 },
-      G: { cost: 0 },
-    },
-    routes: {
-      A: 'D',
-      B: 'D',
-      C: 'D',
-      D: 'D',
-      E: 'G',
-      F: null,
-      G: 'G'
+      D: { distance: 11 },
+      E: { distance: 20 },
+      G: { distance: 6 },
     },
     pings: {
       B: 3,
@@ -132,17 +67,8 @@ let nodes = {
   },
   G: {
     peers: {
-      E: { cost: 0 },
-      F: { cost: 0 },
-    },
-    routes: {
-      A: 'F',
-      B: 'E',
-      C: 'F',
-      D: 'F',
-      E: 'E',
-      F: 'F',
-      G: null
+      E: { distance: 10 },
+      F: { distance: 6 },
     },
     pings: {
       B: 4,
@@ -151,12 +77,43 @@ let nodes = {
   }
 }
 
+function prepMap (nodes) {
+  let newNodes = {}
+  for (let nodeName in nodes){
+    let node = nodes[nodeName]
+    let newNode = newNodes[nodeName] = {}
+    for (let peerName in node.peers) {
+      newNode[peerName] = node.peers[peerName].distance
+    }
+  }
+
+  return newNodes
+}
+
+function checkDistances (map) {
+  for (let nodeName in map) {
+    let node = map[nodeName]
+    for (let peerName in node) {
+      let distance = node[peerName]
+      if (distance !== map[peerName][nodeName]) {
+        throw new Error(`mismatched node distances ${peerName}, ${nodeName}`)
+      }
+    }
+  }
+
+  return map
+}
+
+let graph = new Graph(checkDistances(prepMap(nodes)))
+
 class Node {
   constructor (id, opts) {
     this.id = id
     this.peers = opts.peers
     this.routes = opts.routes
     this.pings = opts.pings
+    this.baseRate = opts.baseRate
+
     this.stats = {
       forwardedTo: {
       //   A: {
@@ -168,38 +125,41 @@ class Node {
 
   recieve (message, peerFrom) {
     if (message.header.destinationAddress === this.id) {
-      // console.log(this.id, 'recieved', message.body, 'from', message.header.sourceAddress, 'via', peerFrom)
+      console.log(this.id, 'recieved', message, 'via', peerFrom)
     } else {
       // Forward along
-      this.send(message, peerFrom)
+      this._send(message, peerFrom)
     }
   }
 
-  send (message, peerFrom) {
+  _send (message, peerFrom) {
     // Get peer for destinationAddress
-    let peerTo = this.routes[message.header.destinationAddress]
+    let peerTo = graph.findShortestPath(this.id, message.header.destinationAddress)[1]
 
-    if (peerFrom) {
+    if (peerFrom) { // Then this is being forwarded for another node.
       console.log('forwarding message from ' + peerFrom + ' to ' + peerTo)
-      // Log forwarding stats
-      if (!this.stats.forwardedTo[peerTo]) {
-        this.stats.forwardedTo[peerTo] = {}
-      }
-      if (!this.stats.forwardedTo[peerTo][peerFrom]) {
-        this.stats.forwardedTo[peerTo][peerFrom] = 0
-      }
-      this.stats.forwardedTo[peerTo][peerFrom] = this.stats.forwardedTo[peerTo][peerFrom] + 1
+      this._logForward(peerFrom, peerTo)
     }
-
 
     // Send to peer
     nodes[peerTo].recieve(message, this.id)
   }
 
+  _logForward (peerFrom, peerTo) {
+    // Log forwarding stats
+    if (!this.stats.forwardedTo[peerTo]) {
+      this.stats.forwardedTo[peerTo] = {}
+    }
+    if (!this.stats.forwardedTo[peerTo][peerFrom]) {
+      this.stats.forwardedTo[peerTo][peerFrom] = 0
+    }
+    this.stats.forwardedTo[peerTo][peerFrom] = this.stats.forwardedTo[peerTo][peerFrom] + 1
+  }
+
   pingPeers () {
     for (let id in this.pings) {
       for (let i = 0; i < this.pings[id]; i++) {
-        this.send({
+        this._send({
           header: {
             destinationAddress: id,
             sourceAddress: this.id
