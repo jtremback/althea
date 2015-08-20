@@ -7,7 +7,7 @@ let nodes = {
     },
     pings: {
       E: 3,
-      F: 7
+      G: 7
     }
   },
   B: {
@@ -15,20 +15,20 @@ let nodes = {
       E: { distance: 25 },
       D: { distance: 8 },
     },
-    pings: {
-      A: 4,
-      G: 2
-    }
+    // pings: {
+    //   A: 4,
+    //   G: 2
+    // }
   },
   C: {
     peers: {
       A: { distance: 20 },
       D: { distance: 15 },
     },
-    pings: {
-      D: 8,
-      B: 4
-    }
+    // pings: {
+    //   D: 8,
+    //   B: 4
+    // }
   },
   D: {
     peers: {
@@ -37,10 +37,10 @@ let nodes = {
       E: { distance: 13 },
       F: { distance: 11 },
     },
-    pings: {
-      C: 4,
-      G: 9
-    }
+    // pings: {
+    //   C: 4,
+    //   G: 9
+    // }
   },
   E: {
     peers: {
@@ -49,10 +49,10 @@ let nodes = {
       F: { distance: 20 },
       G: { distance: 10 },
     },
-    pings: {
-      F: 5,
-      A: 12
-    }
+    // pings: {
+    //   F: 5,
+    //   A: 12
+    // }
   },
   F: {
     peers: {
@@ -60,30 +60,37 @@ let nodes = {
       E: { distance: 20 },
       G: { distance: 6 },
     },
-    pings: {
-      B: 3,
-      D: 9
-    }
+    // pings: {
+    //   B: 3,
+    //   D: 9
+    // }
   },
   G: {
     peers: {
       E: { distance: 10 },
       F: { distance: 6 },
     },
-    pings: {
-      B: 4,
-      C: 5
-    }
+    // pings: {
+    //   B: 4,
+    //   C: 5
+    // }
   }
 }
 
+let blockchain = [
+  {
+    to: 'A',
+    amount: 100
+  }
+]
+
 function prepMap (nodes) {
   let newNodes = {}
-  for (let nodeName in nodes){
-    let node = nodes[nodeName]
-    let newNode = newNodes[nodeName] = {}
-    for (let peerName in node.peers) {
-      newNode[peerName] = node.peers[peerName].distance
+  for (let nodeId in nodes){
+    let node = nodes[nodeId]
+    let newNode = newNodes[nodeId] = {}
+    for (let peerId in node.peers) {
+      newNode[peerId] = node.peers[peerId].distance
     }
   }
 
@@ -91,12 +98,12 @@ function prepMap (nodes) {
 }
 
 function checkDistances (map) {
-  for (let nodeName in map) {
-    let node = map[nodeName]
-    for (let peerName in node) {
-      let distance = node[peerName]
-      if (distance !== map[peerName][nodeName]) {
-        throw new Error(`mismatched node distances ${peerName}, ${nodeName}`)
+  for (let nodeId in map) {
+    let node = map[nodeId]
+    for (let peerId in node) {
+      let distance = node[peerId]
+      if (distance !== map[peerId][nodeId]) {
+        throw new Error(`mismatched node distances ${peerId}, ${nodeId}`)
       }
     }
   }
@@ -124,11 +131,24 @@ class Node {
   }
 
   recieve (message, peerFrom) {
+    message = JSON.parse(message)
     if (message.header.destinationAddress === this.id) {
       console.log(this.id, 'recieved', message, 'via', peerFrom)
+      this._pay(message)
     } else {
       // Forward along
       this._send(message, peerFrom)
+    }
+  }
+
+  _pay (message) {
+    blockchain.push(message.header.payment)
+    for (let forwarderId of message.header.forwarders) {
+      blockchain.push({
+        from: this.id,
+        to: forwarderId,
+        amount: message.header.payment.amount / message.header.forwarders.length
+      })
     }
   }
 
@@ -139,10 +159,11 @@ class Node {
     if (peerFrom) { // Then this is being forwarded for another node.
       console.log('forwarding message from ' + peerFrom + ' to ' + peerTo)
       this._logForward(peerFrom, peerTo)
+      message.header.forwarders.push(this.id)
     }
 
     // Send to peer
-    nodes[peerTo].recieve(message, this.id)
+    nodes[peerTo].recieve(JSON.stringify(message), this.id)
   }
 
   _logForward (peerFrom, peerTo) {
@@ -162,7 +183,13 @@ class Node {
         this._send({
           header: {
             destinationAddress: id,
-            sourceAddress: this.id
+            sourceAddress: this.id,
+            forwarders: [],
+            payment: {
+              from: this.id,
+              to: id,
+              amount: 20
+            }
           },
           body: 'ping'
         })
@@ -191,3 +218,5 @@ for (let key in nodes) {
 for (let key in nodes) {
   console.log(nodes[key].getStats())
 }
+
+console.log(blockchain)
