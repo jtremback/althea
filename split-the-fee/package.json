@@ -5,7 +5,16 @@
   "scripts": {
     "start": "mkdir -p dist & watchify -v -t babelify -d index.js -o dist/bundle.js & http-server . -p 4456 > /dev/null"
   },
-  "dependencies": {},
+  "dependencies": {
+    "babel": "^5.8.21",
+    "babelify": "^6.2.0",
+    "cytoscape": "^2.4.6"
+  },
+  "browserify": {
+    "transform": [
+      "babelify"
+    ]
+  },
   "devDependencies": {
     "babel": "^5.8.21",
     "babel-eslint": "^3.1.5",
