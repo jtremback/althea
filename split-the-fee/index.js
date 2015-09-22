@@ -54,70 +54,12 @@ let cy = cytoscape({
       { data: { id: 'FG', weight: 30, source: 'F', target: 'G' } },
       { data: { id: 'GE', weight: 20, source: 'G', target: 'E' } },
       { data: { id: 'GF', weight: 30, source: 'G', target: 'F' } },
-    ],
-
-//     layout: {
-//   name: 'cola',
-
-//   animate: true, // whether to show the layout as it's running
-//   refresh: 1, // number of ticks per frame; higher is faster but more jerky
-//   maxSimulationTime: 4000, // max length in ms to run the layout
-//   ungrabifyWhileSimulating: false, // so you can't drag nodes during layout
-//   fit: true, // on every layout reposition of nodes, fit the viewport
-//   padding: 30, // padding around the simulation
-//   boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
-
-//   // layout event callbacks
-//   ready: function(){}, // on layoutready
-//   stop: function(){}, // on layoutstop
-
-//   // positioning options
-//   randomize: false, // use random node positions at beginning of layout
-//   avoidOverlap: true, // if true, prevents overlap of node bounding boxes
-//   handleDisconnected: true, // if true, avoids disconnected components from overlapping
-//   nodeSpacing: function( node ){ return 10; }, // extra spacing around nodes
-//   flow: undefined, // use DAG/tree flow layout if specified, e.g. { axis: 'y', minSeparation: 30 }
-//   alignment: undefined, // relative alignment constraints on nodes, e.g. function( node ){ return { x: 0, y: 1 } }
-
-//   // different methods of specifying edge length
-//   // each can be a constant numerical value or a function like `function( edge ){ return 2; }`
-//   edgeLength: undefined, // sets edge length directly in simulation
-//   edgeSymDiffLength: undefined, // symmetric diff edge length in simulation
-//   edgeJaccardLength: undefined, // jaccard edge length in simulation
-
-//   // iterations of cola algorithm; uses default values on undefined
-//   unconstrIter: undefined, // unconstrained initial layout iterations
-//   userConstIter: undefined, // initial layout iterations with user-specified constraints
-//   allConstIter: undefined, // initial layout iterations with all constraints including non-overlap
-
-//   // infinite layout options
-//   infinite: false // overrides all other options for a forces-all-the-time mode
-// }
+    ]
   }
 })
 
-var options = {
+cy.layout({
   name: 'cola',
-
-  animate: true, // whether to show the layout as it's running
-  refresh: 1, // number of ticks per frame; higher is faster but more jerky
-  maxSimulationTime: 500, // max length in ms to run the layout
-  ungrabifyWhileSimulating: false, // so you can't drag nodes during layout
-  fit: true, // on every layout reposition of nodes, fit the viewport
-  padding: 30, // padding around the simulation
-  boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
-
-  // layout event callbacks
-  ready: function(){}, // on layoutready
-  stop: function(){}, // on layoutstop
-
-  // positioning options
-  randomize: false, // use random node positions at beginning of layout
-  avoidOverlap: true, // if true, prevents overlap of node bounding boxes
-  handleDisconnected: true, // if true, avoids disconnected components from overlapping
-  nodeSpacing: function( node ){ return 10; }, // extra spacing around nodes
-  flow: undefined, // use DAG/tree flow layout if specified, e.g. { axis: 'y', minSeparation: 30 }
-  alignment: undefined, // relative alignment constraints on nodes, e.g. function( node ){ return { x: 0, y: 1 } }
 
   // different methods of specifying edge length
   // each can be a constant numerical value or a function like `function( edge ){ return 2; }`
@@ -130,39 +72,25 @@ var options = {
   edgeJaccardLength: function( edge ){
     return edge.data().weight * 8;
   }, // jaccard edge length in simulation
+})
 
-  // iterations of cola algorithm; uses default values on undefined
-  unconstrIter: undefined, // unconstrained initial layout iterations
-  userConstIter: undefined, // initial layout iterations with user-specified constraints
-  allConstIter: undefined, // initial layout iterations with all constraints including non-overlap
+var aStar = cy.elements().aStar({ root: `#A`, goal: `#G` })
 
-  // infinite layout options
-  infinite: false // overrides all other options for a forces-all-the-time mode
-};
+var highlightNextEle = function(i){
+  let element = aStar.path[i]
+  if(element){
+    element.addClass('highlighted');
 
-cy.layout( options );
+    setTimeout(function () {
+      highlightNextEle(i + 1)
+    }, 500);
+    setTimeout(function () {
+      element.removeClass('highlighted')
+    }, 1100);
+  } else {
 
-var bfs = cy.elements().bfs('#A', function(){}, true)
-
-async function foo (start, end) {
-  var aStar = cy.elements().aStar({ root: `#${start}`, goal: `#${end}` })
-
-  var highlightNextEle = function(i){
-    let element = aStar.path[i]
-    if(element){
-      element.addClass('highlighted');
-
-      setTimeout(function () {
-        highlightNextEle(i + 1)
-      }, 500);
-      setTimeout(function () {
-        element.removeClass('highlighted')
-      }, 1100);
-    } else {
-
-    }
   }
 }
 
 // kick off first highlight
-// highlightNextEle(0);
+highlightNextEle(0);
