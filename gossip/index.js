@@ -4,13 +4,13 @@ require('babel/polyfill');
 const aStar = require('a-star')
 
 let network = {
-  A: { id: 'A', peers: ['C'], balance: 10 },
-  B: { id: 'B', peers: ['D'], balance: 10 },
-  C: { id: 'C', peers: ['A', 'D'], balance: 10 },
-  D: { id: 'D', peers: ['B', 'C', 'E', 'F'], balance: 10 },
-  E: { id: 'E', peers: ['D', 'F', 'G'], balance: 10 },
-  F: { id: 'F', peers: ['D', 'E', 'G'], balance: 10 },
-  G: { id: 'G', peers: ['E', 'F'], balance: 10 }
+  A: { id: 'A', peers: ['C'], cost: 1, balance: 100 },
+  B: { id: 'B', peers: ['D'], cost: 1, balance: 100 },
+  C: { id: 'C', peers: ['A', 'D'], cost: 1, balance: 100 },
+  D: { id: 'D', peers: ['B', 'C', 'E', 'F'], cost: 1, balance: 100 },
+  E: { id: 'E', peers: ['D', 'F', 'G'], cost: 1, balance: 100 },
+  F: { id: 'F', peers: ['D', 'E', 'G'], cost: 1, balance: 100 },
+  G: { id: 'G', peers: ['E', 'F'], cost: 1, balance: 100 }
 }
 
 function addPeers (network) {
@@ -84,26 +84,37 @@ function route (currentNode, upstreamNode, message) {
 
 
 
-function updateOwed (currentNode, upstreamNode, message) {
-  let { destinationId } = message
+function updateOwed (creditor, debtor, { destinationId }) {
+  // Create data structure holding amounts owed to creditor per debtor
+  // Example:
+  // owed: {
+  //   D: {
+  //     G: {
+  //       messages: 2,
+  //       messageRate: 1
+  //     }
+  //   }
+  // }
+  creditor.receivable = creditor.receivable || {}
+  creditor.receivable[debtor.id] = creditor.receivable[debtor.id] || {}
+  creditor.receivable[debtor.id][destinationId] = creditor.receivable[debtor.id][destinationId] || {}
+  creditor.receivable[debtor.id][destinationId].messages = creditor.receivable[debtor.id][destinationId].messages || 0
 
-  currentNode.owed = currentNode.owed || {}
-  currentNode.owed[upstreamNode.id] = currentNode.owed[upstreamNode.id] || {}
-  currentNode.owed[upstreamNode.id][destinationId] = currentNode.owed[upstreamNode.id][destinationId] || {}
-  currentNode.owed[upstreamNode.id][destinationId].messages = currentNode.owed[upstreamNode.id][destinationId].messages || 0
+  // Increment number of unpaid messages
+  let numberOfMessages = creditor.receivable[debtor.id][destinationId].messages + 1
+  // Get destination rate or use unknown destination rate of 10
+  let messageRate = (creditor.destinationRates &&
+    creditor.destinationRates[destinationId] || 10) + creditor.cost
 
-  let numberOfMessages = currentNode.owed[upstreamNode.id][destinationId].messages + 1
+  // Update amounts owed to creditor
+  creditor.receivable[debtor.id][destinationId] = { numberOfMessages, messageRate }
 
-  currentNode.owed[upstreamNode.id][destinationId] = {
-    messages: numberOfMessages,
-    messageRate: 1
-  }
-
+  // Make payment request if neccesary
   if (numberOfMessages > 2) {
     makePayment(
-      upstreamNode,
-      currentNode,
-      { destinationId, messages: numberOfMessages, messageRate: 1 }
+      debtor,
+      creditor,
+      { destinationId, numberOfMessages, messageRate }
     )
   }
 }
@@ -111,15 +122,15 @@ function updateOwed (currentNode, upstreamNode, message) {
 
 
 function makePayment (payer, payee, paymentRequest) {
-  payer.destinationPrices = payer.destinationPrices || {}
-  payer.destinationPrices[paymentRequest.destinationId] = paymentRequest.messageRate
+  payer.destinationRates = payer.destinationRates || {}
+  payer.destinationRates[paymentRequest.destinationId] = paymentRequest.messageRate
 
-  let cost = paymentRequest.messages * paymentRequest.messageRate
+  let cost = paymentRequest.numberOfMessages * paymentRequest.messageRate
   payer.balance = payer.balance - cost
   payee.balance = payee.balance + cost
   console.log(`${payer.id} paid ${payee.id} ${cost}`)
 
-  payee.owed[payer.id][paymentRequest.destinationId].messages = 0
+  payee.receivable[payer.id][paymentRequest.destinationId].numberOfMessages = 0
 }
 
 
