@@ -1,4 +1,6 @@
+// Allows us to use ES6 features like TCO
 require('babel/polyfill');
+
 const aStar = require('a-star')
 
 let network = {
@@ -12,14 +14,9 @@ let network = {
 }
 
 function addPeers (network) {
-  for (let node in network) {
-    node = network[node]
-    let peersMap = node.peers.reduce((acc, peer) => {
-      peer = network[peer]
-      acc[peer.id] = peer
-      return acc
-    }, {})
-    node.peers = peersMap
+  for (let key in network) {
+    let node = network[key]
+    node.peers = node.peers.map(peerId => network[peerId])
   }
 
   return network
@@ -32,11 +29,7 @@ function routingAlgorithm (node, destinationId) {
     start: node,
     isEnd (node) { return node.id === destinationId },
     neighbor (node) {
-      let peers = []
-      for (let peer in node.peers) {
-        peers.push(network[peer])
-      }
-      return peers
+      return node.peers
     },
     distance () { return 1 },
     heuristic () { return 1 },
@@ -81,89 +74,88 @@ function route (currentNode, upstreamNode, message) {
   }
 
   let downstreamNode = routingAlgorithm(currentNode, destinationId)
-
   route(downstreamNode, currentNode, message)
 
-  console.log(`${currentNode.id} forwarded ${messageId} to ${downstreamNode} for ${upstreamNode.id}`)
-  updateOwed(currentNode, upstreamNode, message)
+  if (upstreamNode) {
+    console.log(`${currentNode.id} forwarded ${messageId} to ${downstreamNode.id} for ${upstreamNode && upstreamNode.id}`)
+    updateOwed(currentNode, upstreamNode, message)
+  }
 }
 
 
 
-function updateOwed (currentNode, lastHop, message) {
-  let { messageId, sourceId, destinationId } = message
+function updateOwed (currentNode, upstreamNode, message) {
+  let { destinationId } = message
 
   currentNode.owed = currentNode.owed || {}
-  currentNode.owed[lastHop.id] = currentNode.owed[lastHop.id] || {}
-  currentNode.owed[lastHop.id][destinationId] = currentNode.owed[lastHop.id][destinationId] || {}
-  currentNode.owed[lastHop.id][destinationId].messages = currentNode.owed[lastHop.id][destinationId].messages || 0
+  currentNode.owed[upstreamNode.id] = currentNode.owed[upstreamNode.id] || {}
+  currentNode.owed[upstreamNode.id][destinationId] = currentNode.owed[upstreamNode.id][destinationId] || {}
+  currentNode.owed[upstreamNode.id][destinationId].messages = currentNode.owed[upstreamNode.id][destinationId].messages || 0
 
-  let numberOfMessages = currentNode.owed[lastHop.id][destinationId].messages + 1
+  let numberOfMessages = currentNode.owed[upstreamNode.id][destinationId].messages + 1
 
-  currentNode.owed[lastHop.id][destinationId] = {
+  currentNode.owed[upstreamNode.id][destinationId] = {
     messages: numberOfMessages,
-    messagePrice: 1
+    messageRate: 1
   }
 
   if (numberOfMessages > 2) {
-    requestPayment(
-      lastHop,
+    makePayment(
+      upstreamNode,
       currentNode,
-      { destinationId, messages: numberOfMessages, messagePrice: 1 }
+      { destinationId, messages: numberOfMessages, messageRate: 1 }
     )
   }
 }
 
 
 
-function requestPayment (currentNode, from, paymentRequest) {
-  currentNode.destinationPrices = currentNode.destinationPrices || {}
+function makePayment (payer, payee, paymentRequest) {
+  payer.destinationPrices = payer.destinationPrices || {}
+  payer.destinationPrices[paymentRequest.destinationId] = paymentRequest.messageRate
 
-  currentNode.destinationPrices[paymentRequest.destinationId] =
-    paymentRequest.messagePrice
+  let cost = paymentRequest.messages * paymentRequest.messageRate
+  payer.balance = payer.balance - cost
+  payee.balance = payee.balance + cost
+  console.log(`${payer.id} paid ${payee.id} ${cost}`)
 
-  let cost = paymentRequest.messages * paymentRequest.messagePrice
-
-  currentNode.balance - cost
-  from.balance + cost
-
-  from.owed[currentNode][paymentRequest.destinationId].messages = 0
+  payee.owed[payer.id][paymentRequest.destinationId].messages = 0
 }
 
 
 
 route(network.A, null, {
-  messageId: 'foo',
+  messageId: '1',
   sourceId: 'A',
   destinationId: 'G'
 })
 route(network.A, null, {
-  messageId: 'foo',
+  messageId: '2',
   sourceId: 'A',
   destinationId: 'G'
 })
 route(network.A, null, {
-  messageId: 'foo',
+  messageId: '3',
   sourceId: 'A',
   destinationId: 'G'
 })
 route(network.A, null, {
-  messageId: 'foo',
+  messageId: '4',
   sourceId: 'A',
   destinationId: 'G'
 })
 route(network.A, null, {
-  messageId: 'foo',
+  messageId: '5',
   sourceId: 'A',
   destinationId: 'G'
 })
 route(network.A, null, {
-  messageId: 'foo',
+  messageId: '6',
   sourceId: 'A',
   destinationId: 'G'
 })
 route(network.A, null, {
-  messageId: 'foo',
+  messageId: '7',
   sourceId: 'A',
   destinationId: 'G'
 })
