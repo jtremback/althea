@@ -5,14 +5,26 @@ const aStar = require('a-star')
 
 const unknownDestinationRate = 10
 
+const verbose = true
+
+// let network = {
+//   A: { id: 'A', peers: ['C'], marginRate: 1, balance: 0 },
+//   B: { id: 'B', peers: ['D'], marginRate: 1, balance: 0 },
+//   C: { id: 'C', peers: ['A', 'D'], marginRate: 1, balance: 0 },
+//   D: { id: 'D', peers: ['B', 'C', 'E', 'F'], marginRate: 1, balance: 0 },
+//   E: { id: 'E', peers: ['D', 'F', 'G'], marginRate: 1, balance: 0 },
+//   F: { id: 'F', peers: ['D', 'E', 'G'], marginRate: 1, balance: 0 },
+//   G: { id: 'G', peers: ['E', 'F'], marginRate: 1, balance: 0 }
+// }
+
 let network = {
-  A: { id: 'A', peers: ['C'], margin: 1, balance: 100 },
-  B: { id: 'B', peers: ['D'], margin: 1, balance: 100 },
-  C: { id: 'C', peers: ['A', 'D'], margin: 1, balance: 100 },
-  D: { id: 'D', peers: ['B', 'C', 'E', 'F'], margin: 1, balance: 100 },
-  E: { id: 'E', peers: ['D', 'F', 'G'], margin: 1, balance: 100 },
-  F: { id: 'F', peers: ['D', 'E', 'G'], margin: 1, balance: 100 },
-  G: { id: 'G', peers: ['E', 'F'], margin: 1, balance: 100 }
+  A: { id: 'A', peers: ['B'], marginRate: 1, balance: 0 },
+  B: { id: 'B', peers: ['A', 'C'], marginRate: 1, balance: 0 },
+  C: { id: 'C', peers: ['B', 'D'], marginRate: 1, balance: 0 },
+  D: { id: 'D', peers: ['C', 'E'], marginRate: 1, balance: 0 },
+  E: { id: 'E', peers: ['D', 'F'], marginRate: 1, balance: 0 },
+  F: { id: 'F', peers: ['E', 'G'], marginRate: 1, balance: 0 },
+  G: { id: 'G', peers: ['E'], marginRate: 1, balance: 0 }
 }
 
 
@@ -25,6 +37,7 @@ function initNodes (network) {
     // network operation
     node.receivable = {}
     node.destinationRates = {}
+    node.totalMessagesForwarded = 0
 
     // Replace array of peer ids with object of actual peers
     node.peers = node.peers.reduce((peerMap, peerId) => {
@@ -59,14 +72,16 @@ function route (currentNode, upstreamNode, message) {
   let { destinationId } = message
 
   if (currentNode.id === destinationId) {
-    console.log(`${currentNode.id} received ` + JSON.stringify(message))
+    verbose && console.log(`${currentNode.id} received ` + JSON.stringify(message))
     return null
   }
 
   let downstreamNode = routingAlgorithm(currentNode, destinationId)
 
-  console.log(`${currentNode.id} -> ${downstreamNode.id} ` + JSON.stringify(message))
+  verbose && console.log(`${currentNode.id} -> ${downstreamNode.id} ` + JSON.stringify(message))
+
   if (upstreamNode) {
+    currentNode.totalMessagesForwarded = currentNode.totalMessagesForwarded + 1
     updateOwed(currentNode, upstreamNode, message)
   }
 
@@ -87,7 +102,7 @@ function updateOwed (creditor, debtor, { destinationId }) {
   creditor.receivable[debtor.id][destinationId] = numberOfMessages
 
   // Make payment request if neccesary
-  if (numberOfMessages > 2) {
+  if (numberOfMessages > 5) {
     makePayment(
       debtor,
       creditor,
@@ -111,7 +126,7 @@ function makePayment (payer, payee, paymentRequest) {
   payer.balance = payer.balance - txAmount
   payee.balance = payee.balance + txAmount
 
-  console.log(`${payer.id} paid ${payee.id} ${txAmount}`)
+  verbose && console.log(`${payer.id} paid ${payee.id} ${txAmount}`)
 
   payee.receivable[payer.id][paymentRequest.destinationId] = 0
 }
@@ -119,10 +134,19 @@ function makePayment (payer, payee, paymentRequest) {
 
 
 function calculateMessageRate (creditor, destinationId) {
-  return (
-    (creditor.destinationRates[destinationId] || unknownDestinationRate) +
-    creditor.margin
-  )
+  // If the destination is a peer, charge only the margin rate
+  if (creditor.peers[destinationId]) {
+    return creditor.marginRate
+  }
+
+  // If the destination rate is known, charge margin rate plus destination rate
+  if (creditor.destinationRates[destinationId]) {
+    return creditor.destinationRates[destinationId] + creditor.marginRate
+  }
+
+  // If the destination rate is unknown,
+  // charge margin rate plus unknown destination rate
+  return unknownDestinationRate + creditor.marginRate
 }
 
 
@@ -167,42 +191,15 @@ function decircularize () {
 
 initNodes(network)
 
-route(network.A, null, {
-  messageId: '1',
-  sourceId: 'A',
-  destinationId: 'G'
-})
-route(network.A, null, {
-  messageId: '2',
-  sourceId: 'A',
-  destinationId: 'G'
-})
-route(network.A, null, {
-  messageId: '3',
-  sourceId: 'A',
-  destinationId: 'G'
-})
-route(network.A, null, {
-  messageId: '4',
-  sourceId: 'A',
-  destinationId: 'G'
-})
-route(network.A, null, {
-  messageId: '5',
-  sourceId: 'A',
-  destinationId: 'G'
-})
-route(network.A, null, {
-  messageId: '6',
-  sourceId: 'A',
-  destinationId: 'G'
-})
-route(network.A, null, {
-  messageId: '7',
-  sourceId: 'A',
-  destinationId: 'G'
-})
+for (var i = 0; i < 100; i++) {
+  route(network.A, null, {
+    messageId: i + '',
+    sourceId: 'A',
+    destinationId: 'G'
+  })
+}
 
-closeOut(network)
+
+// closeOut(network)
 decircularize(network)
 console.log(JSON.stringify(network, null, 2))
