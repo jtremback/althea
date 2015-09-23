@@ -3,29 +3,38 @@ require('babel/polyfill');
 
 const aStar = require('a-star')
 
+const unknownDestinationRate = 10
+
 let network = {
-  A: { id: 'A', peers: ['C'], cost: 1, balance: 100 },
-  B: { id: 'B', peers: ['D'], cost: 1, balance: 100 },
-  C: { id: 'C', peers: ['A', 'D'], cost: 1, balance: 100 },
-  D: { id: 'D', peers: ['B', 'C', 'E', 'F'], cost: 1, balance: 100 },
-  E: { id: 'E', peers: ['D', 'F', 'G'], cost: 1, balance: 100 },
-  F: { id: 'F', peers: ['D', 'E', 'G'], cost: 1, balance: 100 },
-  G: { id: 'G', peers: ['E', 'F'], cost: 1, balance: 100 }
+  A: { id: 'A', peers: ['C'], margin: 1, balance: 100 },
+  B: { id: 'B', peers: ['D'], margin: 1, balance: 100 },
+  C: { id: 'C', peers: ['A', 'D'], margin: 1, balance: 100 },
+  D: { id: 'D', peers: ['B', 'C', 'E', 'F'], margin: 1, balance: 100 },
+  E: { id: 'E', peers: ['D', 'F', 'G'], margin: 1, balance: 100 },
+  F: { id: 'F', peers: ['D', 'E', 'G'], margin: 1, balance: 100 },
+  G: { id: 'G', peers: ['E', 'F'], margin: 1, balance: 100 }
 }
 
-function addPeers (network) {
+
+
+function initNodes (network) {
   for (let nodeId in network) {
     let node = network[nodeId]
-    node.peers = node.peers.reduce((acc, peerId) => {
-      acc[peerId] = network[peerId]
-      return acc
+
+    // Add properties which are irrelevant to the network spec, but needed for
+    // network operation
+    node.receivable = {}
+    node.destinationRates = {}
+
+    // Replace array of peer ids with object of actual peers
+    node.peers = node.peers.reduce((peerMap, peerId) => {
+      peerMap[peerId] = network[peerId]
+      return peerMap
     }, {})
   }
-
-  return network
 }
 
-network = addPeers(network)
+
 
 function routingAlgorithm (node, destinationId) {
   return aStar({
@@ -68,51 +77,52 @@ function route (currentNode, upstreamNode, message) {
 
 function updateOwed (creditor, debtor, { destinationId }) {
   // Create data structure holding amounts owed to creditor per debtor
-  // Example:
-  // owed: {
-  //   D: {
-  //     G: {
-  //       messages: 2,
-  //       messageRate: 1
-  //     }
-  //   }
-  // }
-  creditor.receivable = creditor.receivable || {}
   creditor.receivable[debtor.id] = creditor.receivable[debtor.id] || {}
-  creditor.receivable[debtor.id][destinationId] = creditor.receivable[debtor.id][destinationId] || {}
-  creditor.receivable[debtor.id][destinationId].numberOfMessages = creditor.receivable[debtor.id][destinationId].numberOfMessages || 0
+  creditor.receivable[debtor.id][destinationId] = creditor.receivable[debtor.id][destinationId] || 0
 
   // Increment number of unpaid messages
-  let numberOfMessages = creditor.receivable[debtor.id][destinationId].numberOfMessages + 1
-  // Get destination rate or use unknown destination rate of 10
-  let messageRate = (creditor.destinationRates &&
-    creditor.destinationRates[destinationId] || 10) + creditor.cost
+  let numberOfMessages = creditor.receivable[debtor.id][destinationId] + 1
 
   // Update amounts owed to creditor
-  creditor.receivable[debtor.id][destinationId] = { numberOfMessages, messageRate }
+  creditor.receivable[debtor.id][destinationId] = numberOfMessages
 
   // Make payment request if neccesary
   if (numberOfMessages > 2) {
-    getPayment(
+    makePayment(
       debtor,
       creditor,
-      { destinationId, numberOfMessages, messageRate }
+      {
+        destinationId,
+        numberOfMessages,
+        messageRate: calculateMessageRate(creditor, destinationId)
+      }
     )
   }
 }
 
 
 
-function getPayment (payer, payee, paymentRequest) {
-  payer.destinationRates = payer.destinationRates || {}
+function makePayment (payer, payee, paymentRequest) {
+  // Record cost of the destination for future reference
   payer.destinationRates[paymentRequest.destinationId] = paymentRequest.messageRate
 
-  let cost = paymentRequest.numberOfMessages * paymentRequest.messageRate
-  payer.balance = payer.balance - cost
-  payee.balance = payee.balance + cost
-  console.log(`${payer.id} paid ${payee.id} ${cost}`)
+  // Calculate txAmount and update balances
+  let txAmount = paymentRequest.numberOfMessages * paymentRequest.messageRate
+  payer.balance = payer.balance - txAmount
+  payee.balance = payee.balance + txAmount
 
-  payee.receivable[payer.id][paymentRequest.destinationId].numberOfMessages = 0
+  console.log(`${payer.id} paid ${payee.id} ${txAmount}`)
+
+  payee.receivable[payer.id][paymentRequest.destinationId] = 0
+}
+
+
+
+function calculateMessageRate (creditor, destinationId) {
+  return (
+    (creditor.destinationRates[destinationId] || unknownDestinationRate) +
+    creditor.margin
+  )
 }
 
 
@@ -125,8 +135,15 @@ function closeOut (network) {
     if (receivable) {
       for (let peerId in receivable) {
         for (let destinationId in receivable[peerId]) {
-          let { numberOfMessages, messageRate } = receivable[peerId][destinationId]
-          getPayment(currentNode.peers[peerId], currentNode, { destinationId, numberOfMessages, messageRate })
+          makePayment(
+            currentNode.peers[peerId],
+            currentNode,
+            {
+              destinationId,
+              numberOfMessages: receivable[peerId][destinationId],
+              messageRate: calculateMessageRate(currentNode, destinationId)
+            }
+          )
         }
       }
     }
@@ -134,6 +151,21 @@ function closeOut (network) {
 }
 
 
+
+function decircularize () {
+  for (let nodeId in network) {
+    let node = network[nodeId]
+    let peerArray = []
+    for (let peerId in network[nodeId].peers) {
+      peerArray.push(peerId)
+    }
+    node.peers = peerArray
+  }
+}
+
+
+
+initNodes(network)
 
 route(network.A, null, {
   messageId: '1',
@@ -172,14 +204,5 @@ route(network.A, null, {
 })
 
 closeOut(network)
-
-for (let nodeId in network) {
-  let node = network[nodeId]
-  let peerArray = []
-  for (let peerId in network[nodeId].peers) {
-    peerArray.push(peerId)
-  }
-  node.peers = peerArray
-}
-
+decircularize(network)
 console.log(JSON.stringify(network, null, 2))
