@@ -14,9 +14,12 @@ let network = {
 }
 
 function addPeers (network) {
-  for (let key in network) {
-    let node = network[key]
-    node.peers = node.peers.map(peerId => network[peerId])
+  for (let nodeId in network) {
+    let node = network[nodeId]
+    node.peers = node.peers.reduce((acc, peerId) => {
+      acc[peerId] = network[peerId]
+      return acc
+    }, {})
   }
 
   return network
@@ -29,7 +32,11 @@ function routingAlgorithm (node, destinationId) {
     start: node,
     isEnd (node) { return node.id === destinationId },
     neighbor (node) {
-      return node.peers
+      let peerArray = []
+      for (let peerId in node.peers) {
+        peerArray.push(node.peers[peerId])
+      }
+      return peerArray
     },
     distance () { return 1 },
     heuristic () { return 1 },
@@ -39,47 +46,22 @@ function routingAlgorithm (node, destinationId) {
 
 
 
-function flood (currentNode, message) {
-  let { messageId, sourceId, destinationId } = message
-
-  if (!currentNode.messagesReceived) {
-    currentNode.messagesReceived = {}
-  }
-
-  if (currentNode.messagesReceived[messageId]) {
-    return null
-  }
-
-  currentNode.messagesReceived[messageId] = true
-
-  if (currentNode.id === destinationId) {
-    console.log(`${currentNode.id} recieved ${messageId} from ${sourceId}`)
-    return null
-  }
-
-  for (let peer of currentNode.peers) {
-    console.log(`${currentNode.id} forwarded ${messageId}`)
-    flood(peer, message)
-  }
-}
-
-
-
 function route (currentNode, upstreamNode, message) {
-  let { messageId, sourceId, destinationId } = message
+  let { destinationId } = message
 
   if (currentNode.id === destinationId) {
-    console.log(`${currentNode.id} recieved ${messageId} from ${sourceId}`)
+    console.log(`${currentNode.id} received ` + JSON.stringify(message))
     return null
   }
 
   let downstreamNode = routingAlgorithm(currentNode, destinationId)
-  route(downstreamNode, currentNode, message)
 
+  console.log(`${currentNode.id} -> ${downstreamNode.id} ` + JSON.stringify(message))
   if (upstreamNode) {
-    console.log(`${currentNode.id} forwarded ${messageId} to ${downstreamNode.id} for ${upstreamNode && upstreamNode.id}`)
     updateOwed(currentNode, upstreamNode, message)
   }
+
+  route(downstreamNode, currentNode, message)
 }
 
 
@@ -98,10 +80,10 @@ function updateOwed (creditor, debtor, { destinationId }) {
   creditor.receivable = creditor.receivable || {}
   creditor.receivable[debtor.id] = creditor.receivable[debtor.id] || {}
   creditor.receivable[debtor.id][destinationId] = creditor.receivable[debtor.id][destinationId] || {}
-  creditor.receivable[debtor.id][destinationId].messages = creditor.receivable[debtor.id][destinationId].messages || 0
+  creditor.receivable[debtor.id][destinationId].numberOfMessages = creditor.receivable[debtor.id][destinationId].numberOfMessages || 0
 
   // Increment number of unpaid messages
-  let numberOfMessages = creditor.receivable[debtor.id][destinationId].messages + 1
+  let numberOfMessages = creditor.receivable[debtor.id][destinationId].numberOfMessages + 1
   // Get destination rate or use unknown destination rate of 10
   let messageRate = (creditor.destinationRates &&
     creditor.destinationRates[destinationId] || 10) + creditor.cost
@@ -111,7 +93,7 @@ function updateOwed (creditor, debtor, { destinationId }) {
 
   // Make payment request if neccesary
   if (numberOfMessages > 2) {
-    makePayment(
+    getPayment(
       debtor,
       creditor,
       { destinationId, numberOfMessages, messageRate }
@@ -121,7 +103,7 @@ function updateOwed (creditor, debtor, { destinationId }) {
 
 
 
-function makePayment (payer, payee, paymentRequest) {
+function getPayment (payer, payee, paymentRequest) {
   payer.destinationRates = payer.destinationRates || {}
   payer.destinationRates[paymentRequest.destinationId] = paymentRequest.messageRate
 
@@ -131,6 +113,24 @@ function makePayment (payer, payee, paymentRequest) {
   console.log(`${payer.id} paid ${payee.id} ${cost}`)
 
   payee.receivable[payer.id][paymentRequest.destinationId].numberOfMessages = 0
+}
+
+
+
+// This closes out all receivable accounts
+function closeOut (network) {
+  for (let nodeId in network) {
+    let currentNode = network[nodeId]
+    let receivable = currentNode.receivable
+    if (receivable) {
+      for (let peerId in receivable) {
+        for (let destinationId in receivable[peerId]) {
+          let { numberOfMessages, messageRate } = receivable[peerId][destinationId]
+          getPayment(currentNode.peers[peerId], currentNode, { destinationId, numberOfMessages, messageRate })
+        }
+      }
+    }
+  }
 }
 
 
@@ -171,10 +171,15 @@ route(network.A, null, {
   destinationId: 'G'
 })
 
+closeOut(network)
 
-for (let key in network) {
-  let node = network[key]
-  node.peers = node.peers.map(peer => peer.id)
+for (let nodeId in network) {
+  let node = network[nodeId]
+  let peerArray = []
+  for (let peerId in network[nodeId].peers) {
+    peerArray.push(peerId)
+  }
+  node.peers = peerArray
 }
 
 console.log(JSON.stringify(network, null, 2))
