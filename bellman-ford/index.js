@@ -14,36 +14,44 @@ const updateInterval = 1000
 //   G: { id: 'G', neighbors: ['E', 'F'] }
 // }
 
-let network = {
-  S: { id: 'S', neighbors: ['A'], marginRate: 1 },
-  A: { id: 'A', neighbors: ['S', 'B'], marginRate: 1 },
-  B: { id: 'B', neighbors: ['A', 'C'], marginRate: 1 },
-  C: { id: 'C', neighbors: ['B', 'D'], marginRate: 1 },
-  D: { id: 'D', neighbors: ['C', 'E'], marginRate: 1 },
-  E: { id: 'E', neighbors: ['D', 'F'], marginRate: 1 },
-  F: { id: 'F', neighbors: ['E', 'G'], marginRate: 1 },
-  G: { id: 'G', neighbors: ['E'], marginRate: 1 }
-}
-
 // let network = {
-//   S: { id: 'S', neighbors: ['A'], marginRate: 1 },
-//   A: { id: 'A', neighbors: ['B', 'C'], marginRate: 1 },
-//   B: { id: 'B', neighbors: ['A', 'C'], marginRate: 1 },
-//   C: { id: 'C', neighbors: ['A', 'B'], marginRate: 1 }
+//   S: { id: 'S', neighbors: ['A'], cost: 1 },
+//   A: { id: 'A', neighbors: ['S', 'B'], cost: 1 },
+//   B: { id: 'B', neighbors: ['A', 'C'], cost: 1 },
+//   C: { id: 'C', neighbors: ['B', 'D'], cost: 1 },
+//   D: { id: 'D', neighbors: ['C', 'E'], cost: 1 },
+//   E: { id: 'E', neighbors: ['D', 'F'], cost: 1 },
+//   F: { id: 'F', neighbors: ['E', 'G'], cost: 1 },
+//   G: { id: 'G', neighbors: ['E'], cost: 1 }
 // }
 
+// let network = {
+//   S: { id: 'S', neighbors: ['A'], cost: 1 },
+//   A: { id: 'A', neighbors: ['B', 'C'], cost: 1 },
+//   B: { id: 'B', neighbors: ['A', 'C'], cost: 1 },
+//   C: { id: 'C', neighbors: ['A', 'B'], cost: 1 }
+// }
+
+//   A--B
+// 1/  1 \1
+// S      D
+// 1\  5 /
+//   C--/
+
+let network = {
+  S: { neighbors: ['A', 'C'], cost: 1 },
+  A: { neighbors: ['S', 'B'], cost: 1 },
+  B: { neighbors: ['A', 'D'], cost: 1 },
+  C: { neighbors: ['S', 'D'], cost: 5 },
+  D: { neighbors: ['B', 'C'], cost: 1 }
+}
 
 function initNodes (network) {
   for (let nodeId in network) {
     let node = network[nodeId]
-    // initialize route table with self
-    node.sources = {
-      // [node.id]: {
-      //   rate: 0,
-      //   nextHop: node.id
-      // }
-    }
 
+    node.id = nodeId
+    node.sources = {}
     node.helloSequence = 0
 
     // Replace array of neighbor ids with object of actual neighbors
@@ -55,60 +63,36 @@ function initNodes (network) {
 }
 
 
-// function flood (currentNode, message) {
-//   let { messageId, sourceId, destinationId } = message
-
-//   if (!currentNode.messagesReceived) {
-//     currentNode.messagesReceived = {}
-//   }
-
-//   if (currentNode.messagesReceived[messageId]) {
-//     return null
-//   }
-
-//   currentNode.messagesReceived[messageId] = true
-
-//   if (currentNode.id === destinationId) {
-//     console.log(`${currentNode.id} recieved ${messageId} from ${sourceId}`)
-//     return null
-//   }
-
-//   for (let peer of currentNode.peers) {
-//     console.log(`${currentNode.id} forwarded ${messageId}`)
-//     flood(peer, message)
-//   }
-// }
-
-
 function update (currentNode, from, message) {
-  debugger
-  let { helloSequence, source, rate } = message
+  let { helloSequence, source, cost } = message
+
   if (
     // source is not in table
     !currentNode.sources[source]
     || // Or
     (
-      // New rate is smaller
-      currentNode.sources[source].rate > rate
+      // New cost is smaller
+      currentNode.sources[source].cost > cost
       && // And
       // helloSequence is bigger
       currentNode.sources[source].helloSequence < helloSequence
     )
   ) {
     console.log(`${currentNode.id} accepted update ${JSON.stringify(message)} from ${from.id}`)
-    currentNode.sources[source] = { helloSequence, rate, nextHop: from.id }
+    currentNode.sources[source] = { helloSequence, cost, nextHop: from.id }
 
     for (let neighborId in currentNode.neighbors) {
       let neighbor = currentNode.neighbors[neighborId]
       console.log(`${currentNode.id} sent update ${JSON.stringify(message)} to ${neighbor.id}`)
       let message = {
-        rate: rate + currentNode.marginRate,
+        cost: cost + currentNode.cost,
         helloSequence,
         source
       }
 
       update(neighbor, currentNode, message)
     }
+    pushHistory(history, network)
   } else {
     console.log(`${currentNode.id} rejected update ${JSON.stringify(message)} from ${from.id}`)
   }
@@ -117,10 +101,11 @@ function update (currentNode, from, message) {
 
 function hello (currentNode) {
   currentNode.helloSequence = currentNode.helloSequence + 1
+
   for (let neighborId in currentNode.neighbors) {
     let neighbor = currentNode.neighbors[neighborId]
-    return update(neighbor, currentNode, {
-      rate: currentNode.marginRate,
+    update(neighbor, currentNode, {
+      cost: currentNode.cost,
       helloSequence: currentNode.helloSequence,
       source: currentNode.id
     })
@@ -142,17 +127,64 @@ function decircularize () {
 
 initNodes(network)
 
+var history = []
+
+function pushHistory (history, network) {
+  let state = {}
+  for (let nodeId in network) {
+    state[nodeId] = JSON.parse(JSON.stringify(network[nodeId].sources))
+  }
+  history.push(state)
+}
+
+pushHistory(history, network)
 hello(network.S)
 
-// for (var i = 0; i < 100; i++) {
-//   route(network.A, null, {
-//     messageId: i + '',
-//     sourceId: 'A',
-//     sourceId: 'G'
-//   })
-// }
-
-
-// closeOut(network)
 decircularize(network)
+
+function printTable (history, sourceId) {
+  let strings = {}
+
+  for (let state of history) {
+    for (let nodeId in state) {
+      let source = state[nodeId][sourceId]
+      if (source) {
+        strings[nodeId] = (strings[nodeId] || '') + ` nh=${source.nextHop}, c=${source.cost} |`
+      } else {
+        strings[nodeId] = (strings[nodeId] || '') + '| --------- |'
+      }
+    }
+  }
+
+  let string = ''
+
+  for (let nodeId in strings) {
+    string = string + ` ${nodeId} ` + strings[nodeId] + '\n'
+  }
+
+  console.log(string)
+  // let nodeIds = []
+  // let lines = []
+  // let string = ''
+
+  // for (let nodeId in history[(history.length - 1)]) {
+  //   nodeIds.push(nodeId)
+  // }
+
+  // for (var i = 0; i < nodeIds.length; i++) {
+  //   let nodeId = nodeIds[i]
+  //   lines[i] = lines[i] +
+  // }
+
+
+  // for (let state of history) {
+  //   for (nodeId in nodeIds) {
+  //     string = string +
+  //   }
+  // }
+}
+
 console.log(JSON.stringify(network, null, 2))
+console.log(JSON.stringify(history, null, 2))
+printTable(history, 'S')
+
