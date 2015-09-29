@@ -4,15 +4,15 @@
 const verbose = true
 const updateInterval = 1000
 
-// let network = {
-//   A: { id: 'A', neighbors: ['C'] },
-//   B: { id: 'B', neighbors: ['D'] },
-//   C: { id: 'C', neighbors: ['A', 'D'] },
-//   D: { id: 'D', neighbors: ['B', 'C', 'E', 'F'] },
-//   E: { id: 'E', neighbors: ['D', 'F', 'G'] },
-//   F: { id: 'F', neighbors: ['D', 'E', 'G'] },
-//   G: { id: 'G', neighbors: ['E', 'F'] }
-// }
+let network = {
+  A: { id: 'A', neighbors: ['C'], cost: 1 },
+  B: { id: 'B', neighbors: ['D'], cost: 1 },
+  C: { id: 'C', neighbors: ['A', 'D'], cost: 1 },
+  D: { id: 'D', neighbors: ['B', 'C', 'E', 'F'], cost: 1 },
+  E: { id: 'E', neighbors: ['D', 'F', 'G'], cost: 1 },
+  F: { id: 'F', neighbors: ['D', 'E', 'G'], cost: 1 },
+  G: { id: 'G', neighbors: ['E', 'F'], cost: 1 }
+}
 
 // let network = {
 //   S: { id: 'S', neighbors: ['A'], cost: 1 },
@@ -38,20 +38,26 @@ const updateInterval = 1000
 // 1\  5 /
 //   C--/
 
-let network = {
-  S: { neighbors: ['A', 'C'], cost: 1 },
-  A: { neighbors: ['S', 'B'], cost: 1 },
-  B: { neighbors: ['A', 'D'], cost: 1 },
-  C: { neighbors: ['S', 'D'], cost: 5 },
-  D: { neighbors: ['B', 'C'], cost: 1 }
-}
+// let network = {
+//   S: { neighbors: ['A', 'C'], cost: 1 },
+//   A: { neighbors: ['S', 'B'], cost: 1 },
+//   B: { neighbors: ['A', 'D'], cost: 1 },
+//   C: { neighbors: ['S', 'D'], cost: 10 },
+//   D: { neighbors: ['B', 'C'], cost: 1 }
+// }
 
 function initNodes (network) {
   for (let nodeId in network) {
     let node = network[nodeId]
 
     node.id = nodeId
-    node.sources = {}
+    node.sources = {
+      [nodeId]: {
+        helloSequence: 1,
+        cost: 0,
+        nextHop: nodeId
+      }
+    }
     node.helloSequence = 0
 
     // Replace array of neighbor ids with object of actual neighbors
@@ -63,38 +69,34 @@ function initNodes (network) {
 }
 
 
-function update (currentNode, from, message) {
-  let { helloSequence, source, cost } = message
-
+function update (currentNode, from, { helloSequence, source, cost }) {
   if (
     // source is not in table
     !currentNode.sources[source]
     || // Or
-    (
-      // New cost is smaller
-      currentNode.sources[source].cost > cost
-      && // And
-      // helloSequence is bigger
-      currentNode.sources[source].helloSequence < helloSequence
-    )
+    // New cost is smaller
+    currentNode.sources[source].cost > cost
+    || // Or
+    // helloSequence is larger
+    currentNode.sources[source].helloSequence < helloSequence
   ) {
-    console.log(`${currentNode.id} accepted update ${JSON.stringify(message)} from ${from.id}`)
+    console.log(`${currentNode.id} accepted update ${JSON.stringify({ helloSequence, source, cost })} from ${from.id}`)
     currentNode.sources[source] = { helloSequence, cost, nextHop: from.id }
 
     for (let neighborId in currentNode.neighbors) {
-      let neighbor = currentNode.neighbors[neighborId]
-      console.log(`${currentNode.id} sent update ${JSON.stringify(message)} to ${neighbor.id}`)
       let message = {
         cost: cost + currentNode.cost,
         helloSequence,
         source
       }
 
-      update(neighbor, currentNode, message)
+      if (neighborId !== from.id) {
+        console.log(`${currentNode.id} sent update ${JSON.stringify(message)} to ${neighborId}`)
+        update(currentNode.neighbors[neighborId], currentNode, message)
+      }
     }
-    pushHistory(history, network)
   } else {
-    console.log(`${currentNode.id} rejected update ${JSON.stringify(message)} from ${from.id}`)
+    console.log(`${currentNode.id} rejected update ${JSON.stringify({ helloSequence, source, cost })} from ${from.id}`)
   }
 }
 
@@ -127,64 +129,24 @@ function decircularize () {
 
 initNodes(network)
 
-var history = []
+hello(network.A)
+// hello(network.A)
+// hello(network.B)
+// hello(network.C)
+// hello(network.D)
 
-function pushHistory (history, network) {
-  let state = {}
-  for (let nodeId in network) {
-    state[nodeId] = JSON.parse(JSON.stringify(network[nodeId].sources))
-  }
-  history.push(state)
-}
+network.C.cost = 10
 
-pushHistory(history, network)
-hello(network.S)
+hello(network.A)
+
+network.C.cost = 1
+
+hello(network.A)
+// hello(network.A)
+// hello(network.B)
+// hello(network.C)
+// hello(network.D)
 
 decircularize(network)
 
-function printTable (history, sourceId) {
-  let strings = {}
-
-  for (let state of history) {
-    for (let nodeId in state) {
-      let source = state[nodeId][sourceId]
-      if (source) {
-        strings[nodeId] = (strings[nodeId] || '') + ` nh=${source.nextHop}, c=${source.cost} |`
-      } else {
-        strings[nodeId] = (strings[nodeId] || '') + '| --------- |'
-      }
-    }
-  }
-
-  let string = ''
-
-  for (let nodeId in strings) {
-    string = string + ` ${nodeId} ` + strings[nodeId] + '\n'
-  }
-
-  console.log(string)
-  // let nodeIds = []
-  // let lines = []
-  // let string = ''
-
-  // for (let nodeId in history[(history.length - 1)]) {
-  //   nodeIds.push(nodeId)
-  // }
-
-  // for (var i = 0; i < nodeIds.length; i++) {
-  //   let nodeId = nodeIds[i]
-  //   lines[i] = lines[i] +
-  // }
-
-
-  // for (let state of history) {
-  //   for (nodeId in nodeIds) {
-  //     string = string +
-  //   }
-  // }
-}
-
 console.log(JSON.stringify(network, null, 2))
-console.log(JSON.stringify(history, null, 2))
-printTable(history, 'S')
-

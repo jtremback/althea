@@ -3,3 +3,4 @@
 *dist/*
 */dist/*
 *.DS_Store*
+*.beam*
