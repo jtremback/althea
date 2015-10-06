@@ -41,23 +41,39 @@ let infinityJSON = {
 //   G: { id: 'G', neighbors: ['E', 'F'], cost: 1 }
 // }
 
+// let network = {
+//   S: { id: 'S', neighbors: ['A'], cost: 1 },
+//   A: { id: 'A', neighbors: ['S', 'B'], cost: 1 },
+//   B: { id: 'B', neighbors: ['A', 'C'], cost: 1 },
+//   C: { id: 'C', neighbors: ['B', 'D'], cost: 1 },
+//   D: { id: 'D', neighbors: ['C', 'E'], cost: 1 },
+//   E: { id: 'E', neighbors: ['D', 'F'], cost: 1 },
+//   F: { id: 'F', neighbors: ['E', 'G'], cost: 1 },
+//   G: { id: 'G', neighbors: ['E'], cost: 1 }
+// }
+
+//       C 1
+// 1 1 1/|
+// S-A-B |
+//      \|
+//       D 1
+
+//       C 1
+// 1 ∞ 1/ \
+// S-A-B   E 1
+//      \ /
+//       D 1
+
+
 let network = {
   S: { id: 'S', neighbors: ['A'], cost: 1 },
   A: { id: 'A', neighbors: ['S', 'B'], cost: 1 },
-  B: { id: 'B', neighbors: ['A', 'C'], cost: Infinity },
-  C: { id: 'C', neighbors: ['B'], cost: 1 },
-  // D: { id: 'D', neighbors: ['C', 'E'], cost: 1 },
-  // E: { id: 'E', neighbors: ['D', 'F'], cost: 1 },
-  // F: { id: 'F', neighbors: ['E', 'G'], cost: 1 },
-  // G: { id: 'G', neighbors: ['E'], cost: 1 }
+  B: { id: 'B', neighbors: ['A', 'C', 'D'], cost: 1 },
+  C: { id: 'C', neighbors: ['B', 'E'], cost: 1 },
+  D: { id: 'D', neighbors: ['B', 'E'], cost: 1 },
+  E: { id: 'D', neighbors: ['C', 'D'], cost: 1 }
 }
 
-// let network = {
-//   S: { id: 'S', neighbors: ['A'], cost: 1 },
-//   A: { id: 'A', neighbors: ['S', 'B', 'C'], cost: 1 },
-//   B: { id: 'B', neighbors: ['A', 'C'], cost: 1 },
-//   C: { id: 'C', neighbors: ['A', 'B'], cost: 1 }
-// }
 
 //   A--B
 // 1/  1 \1
@@ -69,7 +85,7 @@ let network = {
 //   S: { neighbors: ['A', 'C'], cost: 1 },
 //   A: { neighbors: ['S', 'B'], cost: 1 },
 //   B: { neighbors: ['A', 'D'], cost: 1 },
-//   C: { neighbors: ['S', 'D'], cost: 10 },
+//   C: { neighbors: ['S', 'D'], cost: 500 },
 //   D: { neighbors: ['B', 'C'], cost: 1 }
 // }
 
@@ -96,38 +112,24 @@ function initNodes (network) {
 
 function receiveUpdate (self, from, newSources) {
   newSources = infinityJSON.parse(newSources)
-
   for (let newSource of newSources) {
+    // if (newSource.cost === Infinity) { debugger }
     let existingSource = self.sources[newSource.id]
 
-    // If this route does not yet exist, add it
+    // If a route for this destination does not yet exist, add it.
     if (!existingSource) {
       accept(newSource)
+
+    // If the existing entry is from the same neighbor as the new entry, replace it.
+    } else if (existingSource.nextHop === from.id) {
+      accept(newSource)
+
+    // If the existing entry has a higher cost than the new entry, replace it.
+    } else if (newSource.cost < existingSource.cost) {
+      accept(newSource)
+
     } else {
-      switch ([
-        existingSource.cost === Infinity,
-        newSource.cost === Infinity,
-      ]) {
-        // If the existing entry has a cost of Infinity, and the new entry does not,
-        // use the new entry
-        //
-        // If the existing entry does not have a cost of Infinity, and the new
-        // entry does, use the new entry.
-        case [true, false]:
-        case [false, true]:
-          accept(newSource)
-        break
-
-        // If both have a cost of Infinity, use the existing one
-        case [true, true]:
-          reject(newSource)
-        break
-
-        // If neither have a cost of Infinity, use the one with the smaller cost
-        case [false, false]:
-          newSource.cost < existingSource.cost ? accept(newSource) : reject(newSource)
-        break
-      }
+      reject(newSource)
     }
   }
 
@@ -170,3 +172,8 @@ for (let nodeId in network) {
     }, Math.random() * 1000)
   }, 1000)
 }
+
+setTimeout(() => {
+  network.A = undefined
+  ui.updateNetwork(network)
+}, 4000)

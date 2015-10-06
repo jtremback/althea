@@ -297,4 +297,10 @@ Althea intends to create a truly autonomous internet by decentralizing payment a
 
 It's also important to make the distinction between Althea and what I will refer to as "bitcoin hotspot" technology. "Bitcoin hotspots" are simply wifi hotspots locked with a captive portal that can be unlocked for a time with Bitcoins, or another cryptocurrency. If you've ever gone to a coffee shop where you had to type a code from your receipt into a little window to get on the internet, you've used a captive portal. These bitcoin hotspot projects are just like that, but instead of getting the code when you pick up your coffee, you get the code by paying some bitcoins. The owner of the wifi hotspot is still generally connected to the conventional internet by an ISP. These may be very useful, and could be used alongside Althea, but Althea is incentivized internet on a much deeper level.
 
+If your community mesh network is at all successful, it starts to look a lot like an ISP. As soon as a lot of people start using it, bandwidth starts to cost a lot to whoever is providing the gateway. Many mesh network enthusiastists argue that once the entire planet is meshed, it will no longer be neccesary to involve money, and everyone can use as much bandwidth as they want. I believe this is impossible.
 
+1. There will always be demand for more bandwidth.
+  As computers get ever faster and cheaper, more data is processed and media gets richer and more immersive. Higher resolution media needs more bandwidth, larger sensor networks need more bandwidth, larger databases need more bandwidth for fault tolerance, larger blockchains need more bandwidth to sync, etc.
+
+2. There will always be freeloaders.
+  It's easy to click a button and use a lot of bandwidth. Most people wil
