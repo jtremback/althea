@@ -53,9 +53,9 @@ let infinityJSON = {
 // }
 
 //       C 1
-// 1 1 1/|
-// S-A-B |
-//      \|
+// 1 1 1/ \
+// S-A-B   E 1
+//      \ /
 //       D 1
 
 //       C 1
@@ -64,16 +64,76 @@ let infinityJSON = {
 //      \ /
 //       D 1
 
+// let network = {
+//   S: { id: 'S', neighbors: ['A'], cost: 1 },
+//   A: { id: 'A', neighbors: ['S', 'B'], cost: 1 },
+//   B: { id: 'B', neighbors: ['A', 'C', 'D'], cost: 1 },
+//   C: { id: 'C', neighbors: ['B', 'E'], cost: 1 },
+//   D: { id: 'D', neighbors: ['B', 'E'], cost: 1 },
+//   E: { id: 'E', neighbors: ['C', 'D'], cost: 1 }
+// }
+
+
+//      B 1
+// 1  1/|
+// S--A |
+//     \|
+//      C 1
+
+//      B 1
+// ∞  1/|
+// S--A |
+//     \|
+//      C 1
 
 let network = {
   S: { id: 'S', neighbors: ['A'], cost: 1 },
-  A: { id: 'A', neighbors: ['S', 'B'], cost: 1 },
-  B: { id: 'B', neighbors: ['A', 'C', 'D'], cost: 1 },
-  C: { id: 'C', neighbors: ['B', 'E'], cost: 1 },
-  D: { id: 'D', neighbors: ['B', 'E'], cost: 1 },
-  E: { id: 'D', neighbors: ['C', 'D'], cost: 1 }
+  A: { id: 'A', neighbors: ['S', 'B', 'C'], cost: 1 },
+  B: { id: 'B', neighbors: ['A', 'C'], cost: 1 },
+  C: { id: 'C', neighbors: ['A', 'B'], cost: 1 }
 }
 
+
+//       B 1
+// 1 1 1/|
+// S-L-A |
+//      \|
+//       C 1
+
+//       B 1
+// 1 ∞ 1/|
+// S-L-A |
+//      \|
+//       C 1
+
+// let network = {
+//   S: { neighbors: ['L'], cost: 1 },
+//   L: { neighbors: ['S', 'A'], cost: 1 },
+//   A: { neighbors: ['L', 'B', 'C'], cost: 1 },
+//   B: { neighbors: ['A', 'C'], cost: 1 },
+//   C: { neighbors: ['A', 'B'], cost: 1 }
+// }
+
+
+// //      B 1
+// // 1  1/|
+// // S--A D 1
+// //     \|
+// //      C 1
+
+// //      B 1
+// // ∞  1/|
+// // S--A D 1
+// //     \|
+// //      C 1
+
+// let network = {
+//   S: { neighbors: ['A'], cost: 1 },
+//   A: { neighbors: ['S', 'B', 'C'], cost: 1 },
+//   B: { neighbors: ['A', 'D'], cost: 1 },
+//   C: { neighbors: ['A', 'D'], cost: 1 },
+//   D: { neighbors: ['B', 'C'], cost: 1 },
+// }
 
 //   A--B
 // 1/  1 \1
@@ -156,7 +216,9 @@ function sendPeriodicUpdate (self) {
 
   for (let portId in self.ports) {
     let port = self.ports[portId]
-    receiveUpdate(port, self, infinityJSON.stringify(sources))
+    setTimeout(() => {
+      receiveUpdate(port, self, infinityJSON.stringify(sources))
+    }, Math.random() * 100)
   }
 }
 
@@ -172,6 +234,6 @@ for (let nodeId in network) {
 }
 
 setTimeout(() => {
-  network.A.cost = Infinity
+  network.S.cost = Infinity
   ui.updateNetwork(network)
 }, 4000)
