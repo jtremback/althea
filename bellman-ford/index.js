@@ -3,31 +3,58 @@
 
 const verbose = true
 const updateInterval = 1000
+const ui = require('./ui.js')
+
+let infinityJSON = {
+  parse (json, _) {
+    return JSON.parse(
+      json,
+      function (key, value) {
+        if (value === 'Infinity') {
+          return Infinity;
+        }
+        return value;
+      }
+    )
+  },
+  stringify (json, _, spacing) {
+    return JSON.stringify(
+      json,
+      function (key, value) {
+        if (value === Infinity) {
+          return 'Infinity';
+        }
+        return value;
+      },
+      spacing
+    )
+  }
+}
+
+// let network = {
+//   A: { id: 'A', neighbors: ['C'], cost: 1 },
+//   B: { id: 'B', neighbors: ['D'], cost: 1 },
+//   C: { id: 'C', neighbors: ['A', 'D'], cost: 1 },
+//   D: { id: 'D', neighbors: ['B', 'C', 'E', 'F'], cost: 1 },
+//   E: { id: 'E', neighbors: ['D', 'F', 'G'], cost: 1 },
+//   F: { id: 'F', neighbors: ['D', 'E', 'G'], cost: 1 },
+//   G: { id: 'G', neighbors: ['E', 'F'], cost: 1 }
+// }
 
 let network = {
-  A: { id: 'A', neighbors: ['C'], cost: 1 },
-  B: { id: 'B', neighbors: ['D'], cost: 1 },
-  C: { id: 'C', neighbors: ['A', 'D'], cost: 1 },
-  D: { id: 'D', neighbors: ['B', 'C', 'E', 'F'], cost: 1 },
-  E: { id: 'E', neighbors: ['D', 'F', 'G'], cost: 1 },
-  F: { id: 'F', neighbors: ['D', 'E', 'G'], cost: 1 },
-  G: { id: 'G', neighbors: ['E', 'F'], cost: 1 }
+  S: { id: 'S', neighbors: ['A'], cost: 1 },
+  A: { id: 'A', neighbors: ['S', 'B'], cost: 1 },
+  B: { id: 'B', neighbors: ['A', 'C'], cost: Infinity },
+  C: { id: 'C', neighbors: ['B'], cost: 1 },
+  // D: { id: 'D', neighbors: ['C', 'E'], cost: 1 },
+  // E: { id: 'E', neighbors: ['D', 'F'], cost: 1 },
+  // F: { id: 'F', neighbors: ['E', 'G'], cost: 1 },
+  // G: { id: 'G', neighbors: ['E'], cost: 1 }
 }
 
 // let network = {
 //   S: { id: 'S', neighbors: ['A'], cost: 1 },
-//   A: { id: 'A', neighbors: ['S', 'B'], cost: 1 },
-//   B: { id: 'B', neighbors: ['A', 'C'], cost: 1 },
-//   C: { id: 'C', neighbors: ['B', 'D'], cost: 1 },
-//   D: { id: 'D', neighbors: ['C', 'E'], cost: 1 },
-//   E: { id: 'E', neighbors: ['D', 'F'], cost: 1 },
-//   F: { id: 'F', neighbors: ['E', 'G'], cost: 1 },
-//   G: { id: 'G', neighbors: ['E'], cost: 1 }
-// }
-
-// let network = {
-//   S: { id: 'S', neighbors: ['A'], cost: 1 },
-//   A: { id: 'A', neighbors: ['B', 'C'], cost: 1 },
+//   A: { id: 'A', neighbors: ['S', 'B', 'C'], cost: 1 },
 //   B: { id: 'B', neighbors: ['A', 'C'], cost: 1 },
 //   C: { id: 'C', neighbors: ['A', 'B'], cost: 1 }
 // }
@@ -53,100 +80,93 @@ function initNodes (network) {
     node.id = nodeId
     node.sources = {
       [nodeId]: {
-        helloSequence: 1,
         cost: 0,
         nextHop: nodeId
       }
     }
-    node.helloSequence = 0
 
-    // Replace array of neighbor ids with object of actual neighbors
-    node.neighbors = node.neighbors.reduce((neighborMap, neighborId) => {
-      neighborMap[neighborId] = network[neighborId]
-      return neighborMap
+    // Create ports
+    node.ports = node.neighbors.reduce((ports, neighborId) => {
+      ports[neighborId] = network[neighborId]
+      return ports
     }, {})
   }
 }
 
 
-function update (currentNode, from, { helloSequence, source, cost }) {
-  if (
-    // source is not in table
-    !currentNode.sources[source]
-    || // Or
-    // New cost is smaller
-    currentNode.sources[source].cost > cost
-    || // Or
-    // helloSequence is larger
-    currentNode.sources[source].helloSequence < helloSequence
-  ) {
-    console.log(`${currentNode.id} accepted update ${JSON.stringify({ helloSequence, source, cost })} from ${from.id}`)
-    currentNode.sources[source] = { helloSequence, cost, nextHop: from.id }
+function receiveUpdate (self, from, newSources) {
+  newSources = infinityJSON.parse(newSources)
 
-    for (let neighborId in currentNode.neighbors) {
-      let message = {
-        cost: cost + currentNode.cost,
-        helloSequence,
-        source
-      }
+  for (let newSource of newSources) {
+    let existingSource = self.sources[newSource.id]
 
-      if (neighborId !== from.id) {
-        console.log(`${currentNode.id} sent update ${JSON.stringify(message)} to ${neighborId}`)
-        update(currentNode.neighbors[neighborId], currentNode, message)
+    // If this route does not yet exist, add it
+    if (!existingSource) {
+      accept(newSource)
+    } else {
+      switch ([
+        existingSource.cost === Infinity,
+        newSource.cost === Infinity,
+      ]) {
+        // If the existing entry has a cost of Infinity, and the new entry does not,
+        // use the new entry
+        //
+        // If the existing entry does not have a cost of Infinity, and the new
+        // entry does, use the new entry.
+        case [true, false]:
+        case [false, true]:
+          accept(newSource)
+        break
+
+        // If both have a cost of Infinity, use the existing one
+        case [true, true]:
+          reject(newSource)
+        break
+
+        // If neither have a cost of Infinity, use the one with the smaller cost
+        case [false, false]:
+          newSource.cost < existingSource.cost ? accept(newSource) : reject(newSource)
+        break
       }
     }
-  } else {
-    console.log(`${currentNode.id} rejected update ${JSON.stringify({ helloSequence, source, cost })} from ${from.id}`)
+  }
+
+  function accept (newSource) {
+    self.sources[newSource.id] = { cost: newSource.cost, nextHop: from.id }
+
+    ui.log(`${self.id} accepted update ${infinityJSON.stringify(newSource)} from ${from.id}`)
+    ui.updateNetwork(network)
+  }
+
+  function reject (newSource) {
+    ui.log(`${self.id} rejected update ${infinityJSON.stringify(newSource)} from ${from.id}`)
   }
 }
 
 
-function hello (currentNode) {
-  currentNode.helloSequence = currentNode.helloSequence + 1
+function sendPeriodicUpdate (self) {
+  let sources = []
 
-  for (let neighborId in currentNode.neighbors) {
-    let neighbor = currentNode.neighbors[neighborId]
-    update(neighbor, currentNode, {
-      cost: currentNode.cost,
-      helloSequence: currentNode.helloSequence,
-      source: currentNode.id
-    })
+  for (let sourceId in self.sources) {
+    let source = self.sources[sourceId]
+    sources.push({ id: sourceId, cost: source.cost + self.cost })
+  }
+
+  for (let portId in self.ports) {
+    let port = self.ports[portId]
+    receiveUpdate(port, self, infinityJSON.stringify(sources))
   }
 }
 
 
-function decircularize () {
-  for (let nodeId in network) {
-    let node = network[nodeId]
-    let neighborArray = []
-    for (let neighborId in network[nodeId].neighbors) {
-      neighborArray.push(neighborId)
-    }
-    node.neighbors = neighborArray
-  }
-}
 
 
 initNodes(network)
 
-hello(network.A)
-// hello(network.A)
-// hello(network.B)
-// hello(network.C)
-// hello(network.D)
-
-network.C.cost = 10
-
-hello(network.A)
-
-network.C.cost = 1
-
-hello(network.A)
-// hello(network.A)
-// hello(network.B)
-// hello(network.C)
-// hello(network.D)
-
-decircularize(network)
-
-console.log(JSON.stringify(network, null, 2))
+for (let nodeId in network) {
+  let interval = setInterval(() => {
+    setTimeout(() => {
+      sendPeriodicUpdate(network[nodeId])
+    }, Math.random() * 1000)
+  }, 1000)
+}
