@@ -160,10 +160,8 @@ function sendPeriodicUpdate (self) {
   }
 }
 
-
-
-
 initNodes(network)
+ui.drawNetwork(network)
 
 for (let nodeId in network) {
   let interval = setInterval(() => {
@@ -174,6 +172,6 @@ for (let nodeId in network) {
 }
 
 setTimeout(() => {
-  network.A = undefined
+  network.A.cost = Infinity
   ui.updateNetwork(network)
 }, 4000)

@@ -13,22 +13,13 @@ function replacer (key, value) {
   return value;
 }
 
-let newtwork = {
-  S: { id: 'S', neighbors: ['A'], cost: 1 },
-  A: { id: 'A', neighbors: ['S', 'B'], cost: 1 },
-  B: { id: 'B', neighbors: ['A', 'C', 'D'], cost: 1 },
-  C: { id: 'C', neighbors: ['B', 'E'], cost: 1 },
-  D: { id: 'D', neighbors: ['B', 'E'], cost: 1 },
-  E: { id: 'D', neighbors: ['C', 'D'], cost: 1 }
+exports.drawNetwork = function (network) {
+  drawGraph(network2graph(network))
 }
-
-drawGraph(network2graph(newtwork))
-
 
 exports.updateNetwork = function (network) {
   let container = document.getElementById('container')
   container.textContent = JSON.stringify(network, replacer, 2)
-  newtwork = network
 }
 
 exports.log = function (stuff) {
