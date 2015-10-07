@@ -56,7 +56,7 @@ function drawGraph (graph) {
 
   let force = d3.layout.force()
       .charge(-120)
-      .linkDistance(30)
+      .linkDistance(50)
       .size([width, height]);
 
   let svg = d3.select('#d3').append('svg')
