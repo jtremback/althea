@@ -8,22 +8,43 @@ const ui = require('./ui.js')
 const tm = 1000
 
 
-class Intersection {
+class IntersectionMap {
   constructor (iterable) {
-    for (let kvPair of iterable) {
-      this.set(kvPair[0], kvPair[1])
+    this.map = new Map()
+    for (let item of iterable) {
+      this.set(item[0], item[1])
     }
   }
 
   get ([A, B]) {
-    return this[A + B]
+    return this.map.get(A + B)
   }
 
   set ([A, B], value) {
-    this[A + B] = value
-    this[B + A] = value
+    this.map.set(A + B, value)
+    this.map.set(B + A, value)
+  }
+
+  [Symbol.iterator] () {
+    return this.map[Symbol.iterator]()
   }
 }
+
+
+// const IntersectionMap = new Proxy(Map, {
+//   construct (iterable) {
+//     for (let kvPair of iterable) {
+//       this.set(kvPair[0], kvPair[1])
+//     }
+//   },
+//   get ([A, B]) {
+//     return this[A + B]
+//   },
+//   set (target, [A, B], value) {
+//     this[A + B] = value
+//     this[B + A] = value
+//   }
+// })
 
 
 let infinityJSON = {
@@ -203,22 +224,22 @@ let infinityJSON = {
 
 let network = {
   nodes: {
-    S: { neighbors: ['A', 'B'], cost: 1 },
-    A: { neighbors: ['S', 'B'], cost: 1 },
-    B: { neighbors: ['A', 'S'], cost: 1 }
+    S: {},
+    A: {},
+    B: {}
   },
-  edges: [
+  edges: new IntersectionMap([
     [['B', 'A'], { cost: 1 }],
     [['S', 'A'], { cost: 1 }],
     [['B', 'S'], { cost: 1 }]
-  ]
+  ])
 }
 
 
 
 function initNodes (network) {
-  for (let nodeId in network) {
-    let node = network[nodeId]
+  for (let nodeId in network.nodes) {
+    let node = network.nodes[nodeId]
 
     node.id = nodeId
     node.sources = {
@@ -229,10 +250,19 @@ function initNodes (network) {
     }
 
     // Create ports
-    node.ports = node.neighbors.reduce((ports, neighborId) => {
-      ports[neighborId] = network[neighborId]
-      return ports
-    }, {})
+    // node.ports = node.neighbors.reduce((ports, neighborId) => {
+    //   ports[neighborId] = network[neighborId]
+    //   return ports
+    // }, {})
+
+    node.neighbors = {}
+  }
+
+  for (let edge of network.edges) {
+    let nodeIdA = edge[0][0]
+    let nodeIdB = edge[0][1]
+
+    network.nodes[nodeIdA].neighbors[nodeIdB] = network.nodes[nodeIdB]
   }
 }
 
@@ -272,6 +302,9 @@ function receiveUpdate (self, from, newSources) {
   }
 }
 
+function transmit (callback) {
+  setTimeout(callback, Math.random() * 0.1 * tm)
+}
 
 function sendPeriodicUpdate (self) {
   let sources = []
@@ -281,21 +314,22 @@ function sendPeriodicUpdate (self) {
     sources.push({ id: sourceId, cost: source.cost + self.cost })
   }
 
-  for (let portId in self.ports) {
-    let port = self.ports[portId]
-    setTimeout(() => {
-      receiveUpdate(port, self, infinityJSON.stringify(sources))
-    }, Math.random() * 0.1 * tm)
+  for (let neighborId in self.neighbors) {
+    let neighbor = self.neighbors[neighborId]
+    transmit(() => {
+      receiveUpdate(neighbor, self, infinityJSON.stringify(sources))
+    })
   }
 }
 
 initNodes(network)
+
 ui.drawNetwork(network)
 
-for (let nodeId in network) {
+for (let nodeId in network.nodes) {
   let interval = setInterval(() => {
     setTimeout(() => {
-      sendPeriodicUpdate(network[nodeId])
+      sendPeriodicUpdate(network.nodes[nodeId])
     }, Math.random() * tm)
   }, tm)
 }

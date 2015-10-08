@@ -6,7 +6,7 @@ function replacer (key, value) {
     return 'Infinity';
   }
 
-  if (key === 'ports') {
+  if (key === 'neighbors') {
     return undefined
   }
 
@@ -19,11 +19,11 @@ exports.drawNetwork = function (network) {
 
 exports.updateNetwork = function (network) {
   let container = document.getElementById('container')
-  container.textContent = JSON.stringify(network, replacer, 2)
+  container.textContent = JSON.stringify(network.nodes, replacer, 2)
 }
 
 exports.log = function (stuff) {
-  // console.log(stuff)
+  console.log(stuff)
 }
 
 function network2graph (network) {
@@ -33,15 +33,23 @@ function network2graph (network) {
     graph.nodes.push({ name: nodeId })
   }
 
-  let nodeIndex = 0
-  for (let nodeId in network) {
-    let node = network[nodeId]
-    for (let neighborId of node.neighbors) {
-      let neighborIndex = graph.nodes.findIndex(element => element.name === neighborId)
-      graph.links.push({ source: nodeIndex, target: neighborIndex })
-    }
-    nodeIndex = nodeIndex + 1
+  for (let edge of network.edges) {
+    let nodeIdA = edge[0][0]
+    let nodeIdB = edge[0][1]
+    let cost = edge[1].cost
+
+    graph.links.push({ source: nodeIdA, target: nodeIdB, cost })
   }
+
+  // let nodeIndex = 0
+  // for (let nodeId in network.nodes) {
+  //   let node = network.nodes[nodeId]
+  //   for (let neighborId of node.neighbors) {
+  //     let neighborIndex = graph.nodes.findIndex(element => element.name === neighborId)
+  //     graph.links.push({ source: nodeIndex, target: neighborIndex })
+  //   }
+  //   nodeIndex = nodeIndex + 1
+  // }
 
   return graph
 }
@@ -52,48 +60,50 @@ function drawGraph (graph) {
   let width = 250
   let height = 250
 
-  let color = d3.scale.category20();
+  let color = d3.scale.category20()
 
   let force = d3.layout.force()
       .charge(-120)
       .linkDistance(50)
-      .size([width, height]);
+      .size([width, height])
 
   let svg = d3.select('#d3').append('svg')
       .attr('width', width)
-      .attr('height', height);
+      .attr('height', height)
 
-  force
-      .nodes(graph.nodes)
-      .links(graph.links)
-      .start();
+      force
+          .nodes(graph.nodes)
+          .links(graph.links)
+          .start()
 
-  let link = svg.selectAll('.link')
-      .data(graph.links)
-    .enter().append('line')
-      .attr('class', 'link')
-      .style('stroke-width', () => 2)
-      .style('marker-end', 'url(#suit)')
+      var link = svg.selectAll('.link')
+          .data(graph.links)
+        .enter().append('line')
+          .attr('class', 'link')
 
-  let node = svg.selectAll('.node')
-      .data(graph.nodes)
-    .enter().append('circle')
-      .attr('class', 'node')
-      .attr('r', 5)
-      .style('fill', function(d) { return color(d.group); })
-      .call(force.drag)
+      var node = svg.selectAll('.node')
+          .data(graph.nodes)
+        .enter().append('g')
+          .attr('class', 'node')
+          .call(force.drag)
 
-  node.append('title')
-      .text(function(d) { return d.name; })
+      node.append('circle')
+          .attr('class', 'node')
+          .attr('r', 5)
+          .style('fill', function(d) { return color(d.group) })
 
-  force.on('tick', function() {
-    link.attr('x1', function(d) { return d.source.x; })
-        .attr('y1', function(d) { return d.source.y; })
-        .attr('x2', function(d) { return d.target.x; })
-        .attr('y2', function(d) { return d.target.y; })
+      node.append('text')
+          .attr('dx', 12)
+          .attr('dy', '.35em')
+          .text(function(d) { return d.name })
 
-    node.attr('cx', function(d) { return d.x; })
-        .attr('cy', function(d) { return d.y; })
+      force.on('tick', function() {
+        link.attr('x1', function(d) { return d.source.x })
+            .attr('y1', function(d) { return d.source.y })
+            .attr('x2', function(d) { return d.target.x })
+            .attr('y2', function(d) { return d.target.y })
+
+        node.attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')' })
   })
 
   svg.append('defs').selectAll('marker')
