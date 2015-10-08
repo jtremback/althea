@@ -7,6 +7,25 @@ const ui = require('./ui.js')
 
 const tm = 1000
 
+
+class Intersection {
+  constructor (iterable) {
+    for (let kvPair of iterable) {
+      this.set(kvPair[0], kvPair[1])
+    }
+  }
+
+  get ([A, B]) {
+    return this[A + B]
+  }
+
+  set ([A, B], value) {
+    this[A + B] = value
+    this[B + A] = value
+  }
+}
+
+
 let infinityJSON = {
   parse (json, _) {
     return JSON.parse(
@@ -181,6 +200,19 @@ let infinityJSON = {
 // S   | 1
 //  \  |
 // 1 --B
+
+let network = {
+  nodes: {
+    S: { neighbors: ['A', 'B'], cost: 1 },
+    A: { neighbors: ['S', 'B'], cost: 1 },
+    B: { neighbors: ['A', 'S'], cost: 1 }
+  },
+  edges: [
+    [['B', 'A'], { cost: 1 }],
+    [['S', 'A'], { cost: 1 }],
+    [['B', 'S'], { cost: 1 }]
+  ]
+}
 
 
 
