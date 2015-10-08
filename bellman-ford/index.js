@@ -7,46 +7,6 @@ const ui = require('./ui.js')
 
 const tm = 1000
 
-
-class IntersectionMap {
-  constructor (iterable) {
-    this.map = new Map()
-    for (let item of iterable) {
-      this.set(item[0], item[1])
-    }
-  }
-
-  get ([A, B]) {
-    return this.map.get(A + B)
-  }
-
-  set ([A, B], value) {
-    this.map.set(A + B, value)
-    this.map.set(B + A, value)
-  }
-
-  [Symbol.iterator] () {
-    return this.map[Symbol.iterator]()
-  }
-}
-
-
-// const IntersectionMap = new Proxy(Map, {
-//   construct (iterable) {
-//     for (let kvPair of iterable) {
-//       this.set(kvPair[0], kvPair[1])
-//     }
-//   },
-//   get ([A, B]) {
-//     return this[A + B]
-//   },
-//   set (target, [A, B], value) {
-//     this[A + B] = value
-//     this[B + A] = value
-//   }
-// })
-
-
 let infinityJSON = {
   parse (json, _) {
     return JSON.parse(
@@ -228,11 +188,14 @@ let network = {
     A: {},
     B: {}
   },
-  edges: new IntersectionMap([
-    [['B', 'A'], { cost: 1 }],
-    [['S', 'A'], { cost: 1 }],
-    [['B', 'S'], { cost: 1 }]
-  ])
+  edges: {
+    'S,A': { cost: 1 },
+    'A,S': { cost: 1 },
+    'B,A': { cost: 1 },
+    'A,B': { cost: 1 },
+    'S,B': { cost: 1 },
+    'B,S': { cost: 1 },
+  }
 }
 
 
@@ -249,18 +212,11 @@ function initNodes (network) {
       }
     }
 
-    // Create ports
-    // node.ports = node.neighbors.reduce((ports, neighborId) => {
-    //   ports[neighborId] = network[neighborId]
-    //   return ports
-    // }, {})
-
     node.neighbors = {}
   }
 
-  for (let edge of network.edges) {
-    let nodeIdA = edge[0][0]
-    let nodeIdB = edge[0][1]
+  for (let edgeId in network.edges) {
+    let [nodeIdA, nodeIdB] = edgeId.split(',')
 
     network.nodes[nodeIdA].neighbors[nodeIdB] = network.nodes[nodeIdB]
   }

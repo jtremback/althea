@@ -29,16 +29,19 @@ exports.log = function (stuff) {
 function network2graph (network) {
   let graph = { nodes: [], links: [] }
 
-  for (let nodeId in network) {
+  for (let nodeId in network.nodes) {
     graph.nodes.push({ name: nodeId })
   }
 
-  for (let edge of network.edges) {
-    let nodeIdA = edge[0][0]
-    let nodeIdB = edge[0][1]
-    let cost = edge[1].cost
+  for (let edgeId in network.edges) {
+    let [nodeIdA, nodeIdB] = edgeId.split(',')
+    let cost = network.edges[edgeId].cost
 
-    graph.links.push({ source: nodeIdA, target: nodeIdB, cost })
+    graph.links.push({
+      source: graph.nodes.findIndex(element => element.name === nodeIdA),
+      target: graph.nodes.findIndex(element => element.name === nodeIdB),
+      cost
+    })
   }
 
   // let nodeIndex = 0
