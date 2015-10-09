@@ -34,7 +34,7 @@ function network2graph (network) {
   }
 
   for (let edgeId in network.edges) {
-    let [nodeIdA, nodeIdB] = edgeId.split(',')
+    let [nodeIdA, nodeIdB] = edgeId.split('->')
     let cost = network.edges[edgeId].cost
 
     graph.links.push({
@@ -43,16 +43,6 @@ function network2graph (network) {
       cost
     })
   }
-
-  // let nodeIndex = 0
-  // for (let nodeId in network.nodes) {
-  //   let node = network.nodes[nodeId]
-  //   for (let neighborId of node.neighbors) {
-  //     let neighborIndex = graph.nodes.findIndex(element => element.name === neighborId)
-  //     graph.links.push({ source: nodeIndex, target: neighborIndex })
-  //   }
-  //   nodeIndex = nodeIndex + 1
-  // }
 
   return graph
 }
@@ -79,10 +69,21 @@ function drawGraph (graph) {
           .links(graph.links)
           .start()
 
-      var link = svg.selectAll('.link')
+      // d3.timer(force.resume)
+
+      var linkGroup = svg.selectAll('.link')
           .data(graph.links)
-        .enter().append('line')
+        .enter().append('g')
+          .attr('class', 'linkGroup')
+
+      var link = linkGroup.append('line')
           .attr('class', 'link')
+          .style('stroke', '#ccc')
+
+      // var linkText = linkGroup.append('svg:text')
+      //   .attr('class', 'zEnd')
+      //   .attr('text-anchor', 'end')
+      //   .text(function(d) { return d.cost })
 
       var node = svg.selectAll('.node')
           .data(graph.nodes)
@@ -100,13 +101,17 @@ function drawGraph (graph) {
           .attr('dy', '.35em')
           .text(function(d) { return d.name })
 
-      force.on('tick', function() {
-        link.attr('x1', function(d) { return d.source.x })
-            .attr('y1', function(d) { return d.source.y })
-            .attr('x2', function(d) { return d.target.x })
-            .attr('y2', function(d) { return d.target.y })
+  force.on('tick', function() {
+    link.attr('x1', function(d) { return d.source.x })
+        .attr('y1', function(d) { return d.source.y })
+        .attr('x2', function(d) { return d.target.x })
+        .attr('y2', function(d) { return d.target.y })
 
-        node.attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')' })
+    // linkText
+    //     .attr('x', function(d) { return (d.target.x + d.source.x) / 2 })
+    //     .attr('y', function(d) { return (d.target.y + d.source.y) / 2 })
+
+    node.attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')' })
   })
 
   svg.append('defs').selectAll('marker')

@@ -63,29 +63,45 @@ let infinityJSON = {
 
 
 
-//      B 1
-// 1  1/|
-// S--A |
-//     \|
-//      C 1
+//       B
+//   1 1/|
+// S---A |1
+//     1\|
+//       C
 
-//      B 1
-// ∞  1/|
-// S--A |
-//     \|
-//      C 1
+//       B
+//   ∞ 1/|
+// S---A |1
+//     1\|
+//       C
 
-// let network = {
-//   S: { neighbors: ['A'], cost: 1 },
-//   A: { neighbors: ['S', 'B', 'C'], cost: 1 },
-//   B: { neighbors: ['A', 'C'], cost: 1 },
-//   C: { neighbors: ['A', 'B'], cost: 1 }
-// }
+let network = {
+  nodes: {
+    S: {},
+    A: {},
+    B: {},
+    C: {}
+  },
+  edges: {
+    'S->A': { cost: 1 },
+    'A->S': { cost: 1 },
 
-// setTimeout(() => {
-//   network.S.cost = Infinity
-//   ui.updateNetwork(network)
-// }, 4 * tm)
+    'B->A': { cost: 1 },
+    'A->B': { cost: 1 },
+
+    'B->C': { cost: 1 },
+    'C->B': { cost: 1 },
+
+    'C->A': { cost: 1 },
+    'A->C': { cost: 1 },
+  }
+}
+
+setTimeout(() => {
+  network.edges['S->A'].cost = Infinity
+  network.edges['A->S'].cost = Infinity
+  ui.updateNetwork(network)
+}, 4 * tm)
 
 
 
@@ -143,28 +159,47 @@ let infinityJSON = {
 
 
 
-// 1 A--B 1
-//  /    \
-// S 1    D 1
-//  \    /
-// 5 C--/
+//   A--B
+// 1/  1 \1
+// S      D
+// 1\   5/
+//   C--/
 
-// 1 A--B 1
-//  /    \
-// S 1    D 1
-//  \    /
-// 1 C--/
+//   A--B
+// 1/  1 \1
+// S      D
+// 1\   1/
+//   C--/
 
 // let network = {
-//   S: { neighbors: ['A', 'C'], cost: 1 },
-//   A: { neighbors: ['S', 'B'], cost: 1 },
-//   B: { neighbors: ['A', 'D'], cost: 1 },
-//   C: { neighbors: ['S', 'D'], cost: 5 },
-//   D: { neighbors: ['B', 'C'], cost: 1 }
+//   nodes: {
+//     S: {},
+//     A: {},
+//     B: {},
+//     C: {},
+//     D: {}
+//   },
+//   edges: {
+//     'S->A': { cost: 1 },
+//     'A->S': { cost: 1 },
+
+//     'A->B': { cost: 1 },
+//     'B->A': { cost: 1 },
+
+//     'B->D': { cost: 1 },
+//     'D->B': { cost: 1 },
+
+//     'S->C': { cost: 1 },
+//     'C->S': { cost: 1 },
+
+//     'C->D': { cost: 50 },
+//     'D->C': { cost: 50 },
+//   }
 // }
 
 // setTimeout(() => {
-//   network.C.cost = 1
+//   network.edges['C->D'].cost = 1
+//   network.edges['D->C'].cost = 1
 //   ui.updateNetwork(network)
 // }, 4 * tm)
 
@@ -182,21 +217,30 @@ let infinityJSON = {
 //  \  |
 // 1 --B
 
-let network = {
-  nodes: {
-    S: {},
-    A: {},
-    B: {}
-  },
-  edges: {
-    'S,A': { cost: 1 },
-    'A,S': { cost: 1 },
-    'B,A': { cost: 1 },
-    'A,B': { cost: 1 },
-    'S,B': { cost: 1 },
-    'B,S': { cost: 1 },
-  }
-}
+// let network = {
+//   nodes: {
+//     S: {},
+//     A: {},
+//     B: {},
+//     // C: {}
+//   },
+//   edges: {
+//     'S->A': { cost: 1 },
+//     'A->S': { cost: 1 },
+
+//     'B->A': { cost: 1 },
+//     'A->B': { cost: 1 },
+
+//     'S->B': { cost: 1 },
+//     'B->S': { cost: 1 },
+
+//     // 'C->B': { cost: 1 },
+//     // 'B->C': { cost: 1 },
+
+//     // 'C->S': { cost: 1 },
+//     // 'S->C': { cost: 1 }
+//   }
+// }
 
 
 
@@ -216,7 +260,7 @@ function initNodes (network) {
   }
 
   for (let edgeId in network.edges) {
-    let [nodeIdA, nodeIdB] = edgeId.split(',')
+    let [nodeIdA, nodeIdB] = edgeId.split('->')
 
     network.nodes[nodeIdA].neighbors[nodeIdB] = network.nodes[nodeIdB]
   }
@@ -225,8 +269,11 @@ function initNodes (network) {
 
 function receiveUpdate (self, from, newSources) {
   newSources = infinityJSON.parse(newSources)
+
+  let edge = network.edges[self.id + '->' + from.id]
+  let edgeCost = (edge && edge.cost) || 0
+
   for (let newSource of newSources) {
-    // if (newSource.cost === Infinity) { debugger }
     let existingSource = self.sources[newSource.id]
 
     // If a route for this destination does not yet exist, accept it.
@@ -238,7 +285,7 @@ function receiveUpdate (self, from, newSources) {
       accept(newSource)
 
     // If the new route has a lower cost than the existing route, accept it.
-    } else if (newSource.cost < existingSource.cost) {
+    } else if (newSource.cost + edgeCost < existingSource.cost) {
       accept(newSource)
 
     } else {
@@ -247,7 +294,7 @@ function receiveUpdate (self, from, newSources) {
   }
 
   function accept (newSource) {
-    self.sources[newSource.id] = { cost: newSource.cost, nextHop: from.id }
+    self.sources[newSource.id] = { cost: newSource.cost + edgeCost, nextHop: from.id }
 
     ui.log(`${self.id} accepted update ${infinityJSON.stringify(newSource)} from ${from.id}`)
     ui.updateNetwork(network)
@@ -267,7 +314,10 @@ function sendPeriodicUpdate (self) {
 
   for (let sourceId in self.sources) {
     let source = self.sources[sourceId]
-    sources.push({ id: sourceId, cost: source.cost + self.cost })
+    // let edge = network.edges[self.id + '->' + source.nextHop]
+    // let edgeCost = (edge && edge.cost) || 0
+
+    sources.push({ id: sourceId, cost: source.cost })
   }
 
   for (let neighborId in self.neighbors) {
