@@ -282,7 +282,11 @@ function receiveUpdate (self, from, newSources) {
 
     // If the new route is from the same neighbor as the existing route, accept it.
     } else if (existingSource.nextHop === from.id) {
-      accept(newSource)
+      if (newSource.cost + edgeCost < existingSource.cost) {
+        accept(newSource)
+      } else {
+        reject(newSource)
+      }
 
     // If the new route has a lower cost than the existing route, accept it.
     } else if (newSource.cost + edgeCost < existingSource.cost) {

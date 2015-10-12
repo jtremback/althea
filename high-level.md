@@ -303,4 +303,5 @@ If your community mesh network is at all successful, it starts to look a lot lik
   As computers get ever faster and cheaper, more data is processed and media gets richer and more immersive. Higher resolution media needs more bandwidth, larger sensor networks need more bandwidth, larger databases need more bandwidth for fault tolerance, larger blockchains need more bandwidth to sync, etc.
 
 2. There will always be freeloaders.
-  It's easy to click a button and use a lot of bandwidth. Most people wil
+  It's easy to click a button and use a lot of bandwidth. Most people will not think about the fact that they are putting load on other people's routers. Mesh networks cannot overcome the ISP monopolies while also hobbling themselves and using up the precious time and resources of the volunteers who run them.
+
