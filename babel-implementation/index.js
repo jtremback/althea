@@ -26,7 +26,9 @@ let sourceTable = new Map()
 //   source: (prefix + routerId),
 //   neighbor: (interface + address),
 //   metric: Number,
-//   seqno: Number
+//   seqno: Number,
+//   nextHop: String,????????????
+//   selected: Boolean
 // }
 let routeTable = new Map()
 
@@ -38,3 +40,5 @@ let routeTable = new Map()
 //   resend: Number
 // }
 let pendingRequestsTable = new Map()
+
+
