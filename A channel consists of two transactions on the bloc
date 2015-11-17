@@ -1,0 +1,55 @@
+A channel consists of two transactions on the blockchain.
+
+#### Opening Transaction:
+
+- *Agreement*:
+  - *Channel ID*: A string which serves as a unique identifier of this channel
+  - *Pubkey 1*: Alices's public key
+  - *Pubkey 2*: Bob's public key
+  - *Amount 1*: The amount of coins that *Pubkey 1* has placed in the channel
+  - *Amount 2*: The amount of coins that *Pubkey 2* has placed in the channel
+
+- *Signature 1*: *Pubkey 1*'s signature on *Agreement*.
+- *Signature 2*: *Pubkey 2*'s signature on *Agreement*.
+
+
+When an opening transaction is published to the blockchain, it must be signed by both *Pubkey 1* and *Pubkey 2* to be valid.
+*Amount 1* is the amount of money *Pubkey 1* has deposited into the channel. *Amount 2* is the amount of money *Pubkey 2* has deposited into the channel. These amounts are removed from the accounts of *Amount 1* and *Amount 2*, and kept in the channel.
+
+
+#### Channel Transaction:
+
+- *Agreement*:
+  - *Channel ID*: A string which serves as a unique identifier of this channel
+  - *Nonce*: A number which is incremented with each new channel transaction
+  - *Transfer*: The amount of money to transfer from account 1 to account 2 (can be negative).
+  - *Delay*: An amount of time (or number of blocks) to wait before closing the channel, after a channel transaction has been published
+
+- *Signature 1*: *Pubkey 1*'s signature on *Agreement*.
+- *Signature 2*: *Pubkey 1*'s signature on *Agreement*.
+
+
+The channel transaction updates `amount1`, `amount2`, and the `nonce`. It is only considered valid if the total of `amount1` and `amount2` stays the same. This allows both parties to make payments to one another.
+
+If Bob wants to request payment from Alice, he adjusts the amounts to transfer the desired funds and signs the transaction. To make the payment, she signs the transaction as well. None of this involves publishing anything to the blockchain, and can happen instantly.
+
+To actually claim the funds, either party publishes the latest channel transaction to the blockchain. After `delay` blocks, the channel closes: `transfer` is subtracted from `amount1` and added to `amount2`. If a channel transaction with a higher `nonce` is published before a transaction closes, it overrides the older transaction.
+
+This means that if Alice disappears or becomes uncooperative, Bob can still get his money out by waiting `delay` blocks.
+
+If Bob tries to cheat by publishing an old channel transaction where he has a higher amount than he does currently, Alice can simply publish the latest transaction with a higher `nonce`.
+
+### Channel transaction with contracts
+
+- *Agreement*:
+  - *Channel ID*: A string which serves as a unique identifier of this channel
+  - *Nonce*: A number which is incremented with each new channel transaction
+  - *Transfer*: The amount of money to transfer from account 1 to account 2 (can be negative).
+  - *Delay*: An amount of time (or number of blocks) to wait before closing the channel, after a channel transaction has been published
+  - *Contracts*: Contracts to be evaluated when the channel is closed.
+
+- *Signature 1*: *Pubkey 1*'s signature on *Agreement*.
+- *Signature 2*: *Pubkey 1*'s signature on *Agreement*.
+- *Fulfilments*: Arguments to evaluate *Contracts* with.
+
+A contract is a function that returns one value, a signed integer. A contract does not have any side effects, it is a pure function. When the channel closes, the function is evaluated and its return value is added to the channel's `transfer`.

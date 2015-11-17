@@ -26,3 +26,5 @@
 - turn off
 - hold reset button and turn on
 - check tcpdump for the tftp packets (lots of packets)
+
+- makenode set property nodeDB to secrets.sudomesh.org

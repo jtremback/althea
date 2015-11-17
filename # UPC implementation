@@ -1,0 +1,27 @@
+# UPC implementation
+
+## Servers:
+
+- HTTP server
+  - Functionality
+    - Accept channel opening tx
+      - How to integrate with arbitrary other bank systems?
+    - Accept channel update tx (close)
+      - How to integrate with arbitrary other bank systems?
+    - HTTP display of channel status: easy
+    - Evaluate conditions
+      - Gas?
+        - Built in conditions at first
+
+- Blockchain server
+  - Functionality
+    - Accept channel opening tx
+    - Accept channel update tx (close)
+    - Respond to channel status queries
+
+## Clients
+
+- Routing peer
+  - Speak routing algorithm
+  - Interface to human or other decisionmaker on fee acceptability
+  -

@@ -259,6 +259,7 @@ function sendPeriodicUpdate (self) {
       source.fd = source.cost
     }
 
+    // Add source to message going out
     sources.push({ id: sourceId, cost: source.cost })
   }
 
@@ -267,6 +268,7 @@ function sendPeriodicUpdate (self) {
     try {
       transmit(neighbor, self, sources)
     } catch (e) {
+      // If the cost is infinity, update the source table
       self.sources[neighborId].cost = Infinity
     }
   }
