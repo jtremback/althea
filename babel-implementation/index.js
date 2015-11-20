@@ -1,10 +1,12 @@
 let seqno = 0
 
+
 // [deviceId]: {
 //   deviceId: String,
 //   helloSeqno: Number
 // }
 let interfaceTable = new Map()
+
 
 // [interface + address]: {
 //   interface: String,
@@ -14,6 +16,7 @@ let interfaceTable = new Map()
 // }
 let neighborTable = new Map()
 
+
 // [prefix + routerId]: {
 //    prefix: String,
 //    routerId: String,
@@ -21,6 +24,7 @@ let neighborTable = new Map()
 //    metric: Number
 // }
 let sourceTable = new Map()
+
 
 // {
 //   source: (prefix + routerId),
@@ -31,6 +35,7 @@ let sourceTable = new Map()
 //   selected: Boolean
 // }
 let routeTable = new Map()
+
 
 // [prefix]: {
 //   prefix: String,

@@ -1,6 +1,29 @@
 const ui = require('./ui.js')
-
+const randomGraph = require('randomgraph')
 const tm = 1000
+
+// TODO: get this shit to work with the randomGraph format
+
+// debugger
+// const graph = randomGraph.BarabasiAlbert(5, 2, 2)
+
+function graph2network (graph) {
+  let nodes = graph.nodes.reduce((acc, node, index) => {
+    acc[index + ''] = {}
+    return acc
+  }, {})
+
+  let edges = graph.edges.reduce((acc, edge, index) => {
+    acc[edge.source + '->' + edge.target] = { cost: 1 }
+    return acc
+  }, {})
+
+  return { nodes, edges }
+}
+
+// let network = graph2network(randomGraph.BarabasiAlbert(150, 2, 2))
+
+// debugger
 
 let infinityJSON = {
   parse (json, _) {
@@ -27,7 +50,6 @@ let infinityJSON = {
     )
   }
 }
-
 
 
 // Example from section 2.4
@@ -76,50 +98,50 @@ let infinityJSON = {
 
 // Can we select the better route?
 
-// //   A--B
-// // 1/  1 \1
-// // S      D
-// // 1\   5/
-// //   C--/
+//   A--B
+// 1/  1 \1
+// S      D
+// 1\   5/
+//   C--/
 
-// //   A--B
-// // 1/  1 \1
-// // S      D
-// // 1\   1/
-// //   C--/
+//   A--B
+// 1/  1 \1
+// S      D
+// 1\   1/
+//   C--/
 
-// let network = {
-//   nodes: {
-//     S: {},
-//     A: {},
-//     B: {},
-//     C: {},
-//     D: {}
-//   },
-//   edges: {
-//     'S->A': { cost: 1 },
-//     'A->S': { cost: 1 },
+let network = {
+  nodes: {
+    S: {},
+    A: {},
+    B: {},
+    C: {},
+    D: {}
+  },
+  edges: {
+    'S->A': { cost: 1 },
+    'A->S': { cost: 1 },
 
-//     'A->B': { cost: 1 },
-//     'B->A': { cost: 1 },
+    'A->B': { cost: 1 },
+    'B->A': { cost: 1 },
 
-//     'B->D': { cost: 1 },
-//     'D->B': { cost: 1 },
+    'B->D': { cost: 1 },
+    'D->B': { cost: 1 },
 
-//     'S->C': { cost: 1 },
-//     'C->S': { cost: 1 },
+    'S->C': { cost: 1 },
+    'C->S': { cost: 1 },
 
-//     'C->D': { cost: 50 },
-//     'D->C': { cost: 50 },
-//   }
-// }
+    'C->D': { cost: 50 },
+    'D->C': { cost: 50 },
+  }
+}
 
-// setTimeout(() => {
-//   console.log('changed cost of c-d')
-//   network.edges['C->D'].cost = 1
-//   network.edges['D->C'].cost = 1
-//   ui.updateNetwork(network)
-// }, 4 * tm)
+setTimeout(() => {
+  console.log('changed cost of c-d')
+  network.edges['C->D'].cost = 1
+  network.edges['D->C'].cost = 1
+  ui.updateNetwork(network)
+}, 4 * tm)
 
 
 
@@ -137,30 +159,29 @@ let infinityJSON = {
 //  \  |
 // 1 --B
 
-let network = {
-  nodes: {
-    S: {},
-    A: {},
-    B: {}
-  },
-  edges: {
-    'S->A': { cost: 1 },
-    'A->S': { cost: 1 },
+// let network = {
+//   nodes: {
+//     S: {},
+//     A: {},
+//     B: {}
+//   },
+//   edges: {
+//     'S->A': { cost: 1 },
+//     'A->S': { cost: 1 },
 
-    'B->A': { cost: 1 },
-    'A->B': { cost: 1 },
+//     'B->A': { cost: 1 },
+//     'A->B': { cost: 1 },
 
-    'S->B': { cost: 2 },
-    'B->S': { cost: 2 },
-  }
-}
+//     'S->B': { cost: 2 },
+//     'B->S': { cost: 2 },
+//   }
+// }
 
-setTimeout(() => {
-  debugger
-  network.edges['S->A'].cost = Infinity
-  network.edges['A->S'].cost = Infinity
-  ui.updateNetwork(network)
-}, 4 * tm)
+// setTimeout(() => {
+//   network.edges['S->A'].cost = Infinity
+//   network.edges['A->S'].cost = Infinity
+//   ui.updateNetwork(network)
+// }, 4 * tm)
 
 
 
@@ -276,7 +297,7 @@ function sendPeriodicUpdate (self) {
 
 initNodes(network)
 
-ui.drawNetwork(network)
+// ui.drawNetwork(network)
 
 for (let nodeId in network.nodes) {
   setInterval(() => {
