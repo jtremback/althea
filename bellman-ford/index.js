@@ -1,6 +1,7 @@
 const ui = require('./ui.js')
 const randomGraph = require('randomgraph')
 const tm = 1000
+let packetStats = {}
 
 // TODO: get this shit to work with the randomGraph format
 
@@ -49,6 +50,11 @@ let infinityJSON = {
       spacing
     )
   }
+}
+
+function randomProperty (obj) {
+  var keys = Object.keys(obj)
+  return obj[keys[ keys.length * Math.random() << 0]]
 }
 
 
@@ -131,8 +137,8 @@ let network = {
     'S->C': { cost: 1 },
     'C->S': { cost: 1 },
 
-    'C->D': { cost: 50 },
-    'D->C': { cost: 50 },
+    'C->D': { cost: Infinity },
+    'D->C': { cost: Infinity },
   }
 }
 
@@ -225,14 +231,14 @@ function receiveUpdate (self, from, newSources) {
 
     // If a route for this destination does not yet exist, accept it.
     } else if (!existingSource) {
-      console.log('!existingSource')
+      // console.log('!existingSource')
       accept(newSource)
 
     // If the edge to the neighbor is lower cost than the smallest metric that
     // we have ever advertised to our neighbors
     // (D(B) < FD(A) from section 2.4)
     } else if (newSource.cost < existingSource.fd) {
-      console.log('newSource.cost < existingSource.fd')
+      // console.log('newSource.cost < existingSource.fd')
       accept(newSource, existingSource.fd)
 
     } else {
@@ -248,12 +254,12 @@ function receiveUpdate (self, from, newSources) {
       self.sources[newSource.id].nextHop = from.id
     }
 
-    ui.log(`${self.id} accepted update ${infinityJSON.stringify(newSource)} from ${from.id}, with fd ${fd}`)
+    // ui.log(`${self.id} accepted update ${infinityJSON.stringify(newSource)} from ${from.id}, with fd ${fd}`)
     ui.updateNetwork(network)
   }
 
   function reject (newSource, fd) {
-    ui.log(`${self.id} rejected update ${infinityJSON.stringify(newSource)} from ${from.id}`)
+    // ui.log(`${self.id} rejected update ${infinityJSON.stringify(newSource)} from ${from.id}`)
   }
 }
 
@@ -290,7 +296,46 @@ function sendPeriodicUpdate (self) {
       transmit(neighbor, self, sources)
     } catch (e) {
       // If the cost is infinity, update the source table
-      self.sources[neighborId].cost = Infinity
+      if (self.sources[neighborId]) { self.sources[neighborId].cost = Infinity }
+    }
+  }
+}
+
+function randomPing (network) {
+  console.log('randomPing')
+  let source = randomProperty(network.nodes)
+  let destination = randomProperty(network.nodes)
+  if (source !== destination) {
+    return sendDataPacket(source, destination.id)
+  }
+}
+
+function sendDataPacket (self, destinationId) {
+  let id = String(Math.random()).slice(2)
+  let packet = { id, destinationId }
+  packetStats[id] = {
+    source: self.id,
+    sent: Date.now(),
+    packet,
+    hops: []
+  }
+
+  let source = self.sources[destinationId]
+
+  if (source) {
+    return forwardDataPacket(self.neighbors[source.nextHop], packet)
+  }
+}
+
+function forwardDataPacket (self, packet) {
+  if (packet.destinationId === self.id) {
+    packetStats[packet.id].completed = true
+    packetStats[packet.id].received = Date.now()
+  } else {
+    packetStats[packet.id].hops.push(self.id)
+    let source = self.sources[packet.destinationId]
+    if (source) {
+      return forwardDataPacket(self.neighbors[source.nextHop], packet)
     }
   }
 }
@@ -306,3 +351,12 @@ for (let nodeId in network.nodes) {
     }, Math.random() * tm)
   }, tm)
 }
+
+setInterval(() => {
+  randomPing(network)
+}, tm / 10)
+
+setTimeout(() => {
+  console.log(packetStats)
+  debugger
+}, 10000)
