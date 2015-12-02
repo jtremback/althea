@@ -18,8 +18,8 @@ exports.drawNetwork = function (network) {
 }
 
 exports.updateNetwork = function (network) {
-  let container = document.getElementById('container')
-  container.textContent = JSON.stringify(network.nodes, replacer, 2)
+  // let container = document.getElementById('container')
+  // container.textContent = JSON.stringify(network.nodes, replacer, 2)
 }
 
 exports.log = function (stuff) {

@@ -2,11 +2,7 @@ const ui = require('./ui.js')
 const randomGraph = require('randomgraph')
 const tm = 1000
 let packetStats = {}
-
-// TODO: get this shit to work with the randomGraph format
-
-// debugger
-// const graph = randomGraph.BarabasiAlbert(5, 2, 2)
+let packetStatsArray = []
 
 function graph2network (graph) {
   let nodes = graph.nodes.reduce((acc, node, index) => {
@@ -16,15 +12,15 @@ function graph2network (graph) {
 
   let edges = graph.edges.reduce((acc, edge, index) => {
     acc[edge.source + '->' + edge.target] = { cost: 1 }
+    acc[edge.target + '->' + edge.source] = { cost: 1 }
     return acc
   }, {})
 
   return { nodes, edges }
 }
 
-// let network = graph2network(randomGraph.BarabasiAlbert(150, 2, 2))
+let smallRandomGraph = graph2network(randomGraph.BarabasiAlbert(200, 1, 1))
 
-// debugger
 
 let infinityJSON = {
   parse (json, _) {
@@ -116,38 +112,38 @@ function randomProperty (obj) {
 // 1\   1/
 //   C--/
 
-let network = {
+let basicGraph = {
   nodes: {
-    S: {},
-    A: {},
-    B: {},
-    C: {},
-    D: {}
+    0: {},
+    1: {},
+    2: {},
+    3: {},
+    4: {}
   },
   edges: {
-    'S->A': { cost: 1 },
-    'A->S': { cost: 1 },
+    '0->1': { cost: 1 },
+    '1->0': { cost: 1 },
 
-    'A->B': { cost: 1 },
-    'B->A': { cost: 1 },
+    '1->2': { cost: 1 },
+    '2->1': { cost: 1 },
 
-    'B->D': { cost: 1 },
-    'D->B': { cost: 1 },
+    '2->4': { cost: 1 },
+    '4->2': { cost: 1 },
 
-    'S->C': { cost: 1 },
-    'C->S': { cost: 1 },
+    '0->3': { cost: 1 },
+    '3->0': { cost: 1 },
 
-    'C->D': { cost: Infinity },
-    'D->C': { cost: Infinity },
+    '3->4': { cost: Infinity },
+    '4->3': { cost: Infinity },
   }
 }
 
-setTimeout(() => {
-  console.log('changed cost of c-d')
-  network.edges['C->D'].cost = 1
-  network.edges['D->C'].cost = 1
-  ui.updateNetwork(network)
-}, 4 * tm)
+// setTimeout(() => {
+//   console.log('changed cost of c-d')
+//   network.edges['C->D'].cost = 1
+//   network.edges['D->C'].cost = 1
+//   ui.updateNetwork(network)
+// }, 4 * tm)
 
 
 
@@ -189,7 +185,8 @@ setTimeout(() => {
 //   ui.updateNetwork(network)
 // }, 4 * tm)
 
-
+let network = smallRandomGraph
+// let network = basicGraph
 
 function initNodes (network) {
   for (let nodeId in network.nodes) {
@@ -302,7 +299,6 @@ function sendPeriodicUpdate (self) {
 }
 
 function randomPing (network) {
-  console.log('randomPing')
   let source = randomProperty(network.nodes)
   let destination = randomProperty(network.nodes)
   if (source !== destination) {
@@ -317,11 +313,10 @@ function sendDataPacket (self, destinationId) {
     source: self.id,
     sent: Date.now(),
     packet,
-    hops: []
+    hops: [self.id]
   }
 
   let source = self.sources[destinationId]
-
   if (source) {
     return forwardDataPacket(self.neighbors[source.nextHop], packet)
   }
@@ -331,6 +326,7 @@ function forwardDataPacket (self, packet) {
   if (packet.destinationId === self.id) {
     packetStats[packet.id].completed = true
     packetStats[packet.id].received = Date.now()
+    packetStatsArray.push(packetStats[packet.id])
   } else {
     packetStats[packet.id].hops.push(self.id)
     let source = self.sources[packet.destinationId]
@@ -340,9 +336,32 @@ function forwardDataPacket (self, packet) {
   }
 }
 
-initNodes(network)
+function calculateLastStats (packetStatsArray, n) {
+  let lastPacketStats = packetStatsArray.slice(packetStatsArray.length - n)
+  let reducedStats = lastPacketStats.reduce((acc, item, index) => {
+    if (item.completed) {
+      acc.completed = acc.completed + 1
 
-// ui.drawNetwork(network)
+      if (acc.hops === null) {
+        acc.hops = item.hops.length
+      } else {
+        acc.hops = acc.hops + item.hops.length
+      }
+    }
+    return acc
+  }, { completed: 0, hops: null })
+
+  return {
+    completed: reducedStats.completed,
+    hops: reducedStats.hops,
+    completedRatio: reducedStats.completed / n,
+    averageHops: reducedStats.hops && reducedStats.hops / reducedStats.completed
+  }
+}
+
+ui.drawNetwork(network)
+
+initNodes(network)
 
 for (let nodeId in network.nodes) {
   setInterval(() => {
@@ -356,7 +375,6 @@ setInterval(() => {
   randomPing(network)
 }, tm / 10)
 
-setTimeout(() => {
-  console.log(packetStats)
-  debugger
-}, 10000)
+setInterval(() => {
+  console.log(calculateLastStats(packetStatsArray, 10))
+}, tm)
