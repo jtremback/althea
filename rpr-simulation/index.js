@@ -1,5 +1,7 @@
 const ui = require('./ui.js')
 const randomGraph = require('randomgraph')
+const sha3 = require('js-sha3')
+
 const tm = 1000
 const cardLength = 10
 const cardDepth = 10
@@ -23,6 +25,9 @@ function graph2network (graph) {
 
 let smallRandomGraph = graph2network(randomGraph.BarabasiAlbert(200, 1, 1))
 
+function hashFn (secret) {
+  return sha3.keccak_224(secret)
+}
 
 let infinityJSON = {
   parse (json, _) {
@@ -69,40 +74,68 @@ function randomProperty (obj) {
 //       value: 2
 //     }
 //   },
-//   pendingRoutes: {
-//     [paymentHash/fromChannel]: {
-//       fromChannel,
-//       amountToReceive,
+//   routingTable: {
+//     [hash]: {
+//       hash,
 //       toChannel,
-//       amountToSend,
-//       paymentHash
+//       sendAmount,
+//       fromChannel: {
+//         [channelId]: {
+//           receiveAmount
+//         }
+//       },
 //     }
 //   },
+//
+//   // Source has these
+//   pendingRoutes: {
+//     [hash]: {
+//       hash,
+//       amount,
+//       secret,
+//     }
+//   },
+//
+//   // Destination has these
+//   pendingPayments: {
+//     [hash]: {
+//       hash,
+//       amount,
+//       secret,
+//     }
+//   },
+//
+//   lockedPayments:
+//
 //   channels: {
 //     A: {
 //       channelId: A,
 //       myBalance: 10,
 //       theirBalance: 10,
-//       denomination: 'USD'
 //     }
 //     B: {
 //       channelId: B,
 //       myBalance: 20,
 //       theirBalance: 5,
-//       denomination: 'EUR'
 //     }
 //   }
 // }
 //
 // routingMessage: {
 //   amount: 100,
-//   denomination: USD,
-//   paymentHash: xyz123,
+//   hash: xyz123,
 //   channelId: A,
 //   markedCard: [
 //     ...
 //   ]
 // }
+//
+// hashlockedPayment: {
+//   hash: xyz123,
+//   amount: 100,
+//   channel: A
+// }
+//
 
 
 // $/€:2/1
@@ -119,7 +152,7 @@ let basicGraph = {
   nodes: {
     1: {
       ipAddress: 1,
-      xchgRates: {
+      exchangeRates: {
         'B/A': '1/2',
         'A/B': '2/1'
       },
@@ -127,14 +160,12 @@ let basicGraph = {
         {
           channelId: 'A',
           ipAddress: 3,
-          denomination: 'USD',
           myBalance: 20,
           theirBalance: 10
         },
         {
           channelId: 'B',
           ipAddress: 2,
-          denomination: 'EUR',
           myBalance: 5,
           theirBalance: 10
         }
@@ -142,7 +173,7 @@ let basicGraph = {
     },
     2: {
       ipAddress: 2,
-      xchgRates: {
+      exchangeRates: {
         'B/C': '24/23',
         'C/B': '24/23'
       },
@@ -150,14 +181,12 @@ let basicGraph = {
         {
           channelId: 'B',
           ipAddress: 1,
-          denomination: 'EUR',
           myBalance: 10,
           theirBalance: 5
         },
         {
           channelId: 'C',
           ipAddress: 3,
-          denomination: 'USD',
           myBalance: 30,
           theirBalance: 40
         }
@@ -165,7 +194,7 @@ let basicGraph = {
     },
     3: {
       ipAddress: 3,
-      xchgRates: {
+      exchangeRates: {
         'B/A': '24/23',
         'A/B': '24/23'
       },
@@ -173,21 +202,18 @@ let basicGraph = {
         {
           channelId: 'A',
           ipAddress: 1,
-          denomination: 'USD',
           myBalance: 10,
           theirBalance: 20
         },
         {
           channelId: 'C',
           ipAddress: 2,
-          denomination: 'USD',
           myBalance: 40,
           theirBalance: 30
         },
         {
           channelId: 'D',
           ipAddress: 4,
-          denomination: 'USD',
           myBalance: 30,
           theirBalance: 10
         }
@@ -195,12 +221,11 @@ let basicGraph = {
     },
     4: {
       ipAddress: 4,
-      xchgRates: {},
+      exchangeRates: {},
       channels: [
         {
           channelId: 'D',
           ipAddress: 3,
-          denomination: 'USD',
           myBalance: 10,
           theirBalance: 30
         }
@@ -225,9 +250,6 @@ function channelChecker (nodes) {
       if (node.ipAddress !== theirChannel.ipAddress) {
         throw new Error(ipAddress + ' ' + myChannel.channelId + ' ' + 'node.ipAddress !== theirChannel.ipAddress' + ' ' + node.ipAddress + ' ' + theirChannel.ipAddress)
       }
-      if (myChannel.denomination !== theirChannel.denomination) {
-        throw new Error(ipAddress + ' ' + myChannel.channelId + ' ' + 'myChannel.denomination !== theirChannel.denomination' + ' ' + myChannel.denomination + ' ' + theirChannel.denomination)
-      }
       if (myChannel.myBalance !== theirChannel.theirBalance) {
         throw new Error(ipAddress + ' ' + myChannel.channelId + ' ' + 'myChannel.myBalance !== theirChannel.theirBalance' + ' ' + myChannel.myBalance + ' ' + theirChannel.theirBalance)
       }
@@ -246,21 +268,30 @@ function initNodes (network) {
     let node = network.nodes[ipAddress]
 
     node.ipAddress = ipAddress
-    node.pendingRoutes = {}
+    node.routeTable = {}
     node.cardTable = {}
   }
 }
 
-function findRoute (self, amount, denomination) {
+function initializePayment (self, amount, secret) {
+
+}
+
+function sendRoutingMessage (self, amount, secret) {
+  let hash = hashFn(secret)
+  // Create pendingPayments entry
+  self.pendingPayments[hash] = {
+    hash,
+    secret,
+    amount,
+  }
+
   for (let channel of self.channels) {
-    if (channel.denomination === denomination &&
-      channel.theirBalance > amount) {
-
-
+    if (channel.theirBalance > amount) {
 
       let routingMessage = {
         amount,
-        denomination,
+        hash: hash(secret),
         markedCard: makeMarkedCard(cardLength, cardDepth, self.cardTable)
       }
 
@@ -272,68 +303,106 @@ function findRoute (self, amount, denomination) {
   }
 }
 
-
-
 function forwardRoutingMessage (self, routingMessage) {
-  // Check for existing route in pending routes table
-  let existingRoute = self.pendingRoutes[
-    routingMessage.paymentHash + '/' + routingMessage.channelId
-  ]
+  // Check if this is for us
+  if (self.pendingRoutes[routingMessage.hash]) {
+    receivedRoute(self, routingMessage)
+  } else {
+    // Check for existing route in pending routes table
+    let existingRoute = self.routeTable[routingMessage.hash]
 
-  if (
-    // If no route exists
-    !existingRoute
-    // Or the new amount to send is lower
-    || (existingRoute.amountToSend > routingMessage.amount)) {
+    if (
+      // If no route exists
+      !existingRoute
+      // Or the new amount to send is lower
+      || (existingRoute.sendAmount > routingMessage.amount)) {
 
-    // Initialize pending route entry
-    let pendingRoute = {
-      paymentHash: routingMessage.paymentHash,
+      // Initialize pending route entry
+      let pendingRoute = {
+        hash: routingMessage.hash,
 
-      toChannel: routingMessage.channelId,
-      amountToSend: routingMessage.amount,
+        toChannel: routingMessage.channelId,
+        sendAmount: routingMessage.amount,
 
-      fromChannels: {}
-    }
-
-    // And broadcast to eligible neighbors
-    for (let fromChannel of self.channels) {
-      // Remember that the routingMessage comes *from* the node that the payment
-      // will be going *to*
-      let newAmount = getNewAmount(
-        self,
-        fromChannel.channelId,
-        routingMessage.channelId,
-        routingMessage.amount
-      )
-
-      // If denomination matches
-      if (fromChannel.denomination === routingMessage.denomination
-        // And they have enough in their side of the channel
-        && fromChannel.theirBalance > newAmount
-        // And we have not marked the card yet
-        && checkMarkedCard(routingMessage.card, routingMessage.paymentHash, self.cardTable)) {
-
-        // Add amount to be payed into fromChannels list
-        pendingRoute.fromChannels[fromChannel.channelId] = newAmount
-
-        // Forward to neighbor
-        forwardRoutingMessage(
-          network.nodes[fromChannel.channelId],
-          routingMessage
-        )
+        fromChannels: {}
       }
-    }
 
-    // Save in the pending routes table
-    self.pendingRoutes[routingMessage.paymentHash + '/' + routingMessage.channelId] = pendingRoute
+      // And broadcast to eligible neighbors
+      for (let fromChannel of self.channels) {
+        // Remember that the routingMessage comes *from* the node that the payment
+        // will be going *to*
+        let newAmount = getNewAmount(
+          self,
+          fromChannel.channelId,
+          routingMessage.channelId,
+          routingMessage.amount
+        )
+
+        // If they have enough in their side of the channel
+        if (fromChannel.theirBalance > newAmount
+          // And we have not marked the card yet
+          && checkMarkedCard(routingMessage.card, routingMessage.hash, self.cardTable)
+        ) {
+
+          // Add amount to be payed into fromChannel list
+          pendingRoute.fromChannels[fromChannel.channelId] = {
+            receiveAmount: newAmount
+          }
+
+          // Forward to neighbor
+          forwardRoutingMessage(
+            network.nodes[fromChannel.channelId],
+            {
+              amount: newAmount,
+              hash: routingMessage.hash,
+              markedCard: markMarkedCard(routingMessage.card, routingMessage.hash, self.cardTable)
+            }
+          )
+        }
+      }
+
+      // Save in the pending routes table
+      self.routeTable[routingMessage.hash] = pendingRoute
+    }
   }
+}
+
+function receivedRoute (self, routingMessage) {
+
+}
+
+function sendPayment (self, amount) {
+
+}
+
+function forwardPayment (self, payment) {
+  // Check if this is for us
+  if (self.pendingPayments[payment.hash]) {
+    receivedPayment(self, payment)
+  } else {
+    let pendingRoute = self.routeTable[payment.hash]
+    // If the amount is correct
+    if (payment.amount === pendingRoute.receiveAmount[payment.channel]) {
+      // Send a payment to the correct neighbor
+      forwardPayment(
+        network.nodes[self.channels[pendingRoute.toChannel].ipAddress],
+        { hash: pendingRoute.hash,
+          amount: pendingRoute.sendAmount,
+          channel: pendingRoute.toChannel,
+        }
+      )
+    }
+  }
+}
+
+function receivedPayment (self, payment) {
+
 }
 
 function getNewAmount (self, from, to, oldAmount) {
   // convert channel combo into string format, get from/to from table
   // split result into numerator and denominator
-  let [numerator, denominator] = self.xchgRates[from + '/' + to].split('/')
+  let [numerator, denominator] = self.exchangeRates[from + '/' + to].split('/')
   return oldAmount * (numerator / denominator)
 }
 
@@ -368,6 +437,7 @@ function markMarkedCard (card, paymentHash, cardTable) {
     position,
     value
   }
+  return card[position] = value
 }
 
 
