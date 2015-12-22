@@ -282,7 +282,13 @@ function initNodes (network) {
   }
 }
 
-function exchange () {}
+
+function exchange (self, { amount, from, to }) {
+  let [numerator, denominator] = self.exchangeRates[from + '/' + to]
+                                 .split('/').map(n => Number(n))
+
+  return amount * (numerator / denominator)
+}
 
 // Steps when initializing payment:
 // 1. Send payment initialization to destination
@@ -329,7 +335,7 @@ function sendRoutingMessage (self, { secret, amount, denomination }) {
     let fromChannel = self.channels[fromChannelId]
 
     // Convert to fromChannel's denomination
-    let newAmount = exchange(amount, denomination, fromChannel.denomination)
+    let newAmount = exchange(self, { amount, from: denomination, to: fromChannel.denomination })
 
     // If they have enough in their side of the channel
     if (fromChannel.theirBalance > amount) {
@@ -379,9 +385,9 @@ function forwardRoutingMessage (self, { hash, amount, channelId }) {
     let fromChannel = self.channels[fromChannelId]
 
     // Convert to fromChannel's denomination
-    let newAmount = exchange(amount, toChannel.denomination, fromChannel.denomination)
+    let newAmount = exchange(self, { amount, from: toChannel.denomination, to: fromChannel.denomination })
       // Convert fee and add that as well
-      + exchange(self.fee.amount, self.fee.denomination, fromChannel.denomination)
+      + exchange(self, { amount: self.fee.amount, from: self.fee.denomination, to: fromChannel.denomination})
 
     // If they have enough in their side of the channel
     if (fromChannel.theirBalance > newAmount) {
@@ -509,7 +515,5 @@ function calculateLastStats (packetStatsArray, n) {
 }
 
 channelChecker(basicGraph.nodes)
-
-// ui.drawNetwork(network)
 
 initNodes(network)
