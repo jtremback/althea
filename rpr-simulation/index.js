@@ -146,15 +146,15 @@ function randomProperty (obj) {
 //       \     /
 //       €10 $30
 //         (2)
-//       €/$:1/1
+//       €/$:2/1
 
 let basicGraph = {
   nodes: {
     1: {
       ipAddress: 1,
       exchangeRates: {
-        'USD/EUR': '1/2',
-        'EUR/USD': '2/1'
+        'USD/EUR': '1/1',
+        'EUR/USD': '1/1'
       },
       fee: {
         amount: 0.01,
@@ -180,8 +180,8 @@ let basicGraph = {
     2: {
       ipAddress: 2,
       exchangeRates: {
-        'USD/EUR': '1/1',
-        'EUR/USD': '1/1'
+        'USD/EUR': '1/2',
+        'EUR/USD': '2/1'
       },
       fee: {
         amount: 0.01,
@@ -409,12 +409,12 @@ function sendRoutingMessage (self, { secret, amount, denomination }) {
 function forwardRoutingMessage (self, { hash, amount, channelId }) {
   // Is source
   if (self.pendingRoutes[hash]) {
-    console.log('forwardRoutingMessage', 'ip: ' + self.ipAddress, 'denom: ' + self.channels[channelId].denomination, { hash, amount, channelId })
+    console.log('receivedRoutingMessage', 'ip: ' + self.ipAddress, 'denom: ' + self.channels[channelId].denomination, { hash, amount, channelId })
   // Is destination
   } else if (self.pendingPayments[hash]) {
-    console.log('is destination')
+    console.log('is destination', 'ip: ' + self.ipAddress)
   } else if (self.routingTable[hash] && self.routingTable[hash].sendAmount < amount) {
-    console.log('old entry was lower')
+    console.log('old entry was lower', 'ip: ' + self.ipAddress)
   } else {
     console.log('forwardRoutingMessage', 'ip: ' + self.ipAddress, 'denom: ' + self.channels[channelId].denomination, { hash, amount, channelId })
     let toChannel = self.channels[channelId]
