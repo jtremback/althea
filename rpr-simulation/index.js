@@ -137,19 +137,38 @@ function randomProperty (obj) {
 // }
 //
 
-
-// $/€:2/1
-//   (1) $20-A-$10 (3) $30-D-$10 (4)
-//     €5        $40
-//      |        /
-//      B       C
-//       \     /
-//       €10 $30
-//         (2)
-//       €/$:2/1
+//             $/€:1/1
+// (5) $10-E-$10 (1) $20-A-$10 (3) $30-D-$10 (4)
+//                €5         $40
+//                 \         /
+//                  B       C
+//                   \     /
+//                   €10 $30
+//                     (2)
+//                   €/$:2/1
 
 let basicGraph = {
   nodes: {
+    5: {
+      ipAddress: 5,
+      exchangeRates: {
+        'USD/EUR': '1/1',
+        'EUR/USD': '1/1'
+      },
+      fee: {
+        amount: 0.00,
+        denomination: 'USD'
+      },
+      channels: {
+        E: {
+          channelId: 'E',
+          ipAddress: 1,
+          denomination: 'USD',
+          myBalance: 10,
+          theirBalance: 10
+        }
+      }
+    },
     1: {
       ipAddress: 1,
       exchangeRates: {
@@ -157,7 +176,7 @@ let basicGraph = {
         'EUR/USD': '1/1'
       },
       fee: {
-        amount: 0.01,
+        amount: 0.00,
         denomination: 'USD'
       },
       channels: {
@@ -174,6 +193,13 @@ let basicGraph = {
           denomination: 'EUR',
           myBalance: 5,
           theirBalance: 10
+        },
+        E: {
+          channelId: 'E',
+          ipAddress: 5,
+          denomination: 'USD',
+          myBalance: 10,
+          theirBalance: 10
         }
       }
     },
@@ -184,7 +210,7 @@ let basicGraph = {
         'EUR/USD': '2/1'
       },
       fee: {
-        amount: 0.01,
+        amount: 0.00,
         denomination: 'USD'
       },
       channels: {
@@ -211,7 +237,7 @@ let basicGraph = {
         'EUR/USD': '1/1'
       },
       fee: {
-        amount: 0.01,
+        amount: 0.00,
         denomination: 'USD'
       },
       channels: {
@@ -245,7 +271,7 @@ let basicGraph = {
         'EUR/USD': '1/1'
       },
       fee: {
-        amount: 0.01,
+        amount: 0.00,
         denomination: 'USD'
       },
       channels: {
@@ -315,7 +341,7 @@ function exchange (self, { amount, from, to }) {
 }
 
 function transmit (fn) {
-  setTimeout(fn, Math.random() * 0.1 * tm)
+  setTimeout(fn, /*Math.random() */ 0.1 * tm)
 }
 
 
@@ -407,16 +433,17 @@ function sendRoutingMessage (self, { secret, amount, denomination }) {
 //      - channelId
 //      - receiveAmount
 function forwardRoutingMessage (self, { hash, amount, channelId }) {
+  let routingMessage = { hash, amount, channelId, denom: self.channels[channelId].denomination }
   // Is source
   if (self.pendingRoutes[hash]) {
-    console.log('receivedRoutingMessage', 'ip: ' + self.ipAddress, 'denom: ' + self.channels[channelId].denomination, { hash, amount, channelId })
+    console.log(self.ipAddress, 'received routing message', routingMessage)
   // Is destination
   } else if (self.pendingPayments[hash]) {
-    console.log('is destination', 'ip: ' + self.ipAddress)
+    console.log(self.ipAddress, 'is destination', routingMessage)
   } else if (self.routingTable[hash] && self.routingTable[hash].sendAmount < amount) {
-    console.log('old entry was lower', 'ip: ' + self.ipAddress)
+    console.log(self.ipAddress, 'old entry is lower', routingMessage)
   } else {
-    console.log('forwardRoutingMessage', 'ip: ' + self.ipAddress, 'denom: ' + self.channels[channelId].denomination, { hash, amount, channelId })
+    console.log(self.ipAddress, 'forwarding routing message', routingMessage)
     let toChannel = self.channels[channelId]
 
     // Create routingTable entry
@@ -563,4 +590,4 @@ channelChecker(basicGraph.nodes)
 
 initNodes(network)
 
-initializePayment(network.nodes[1], network.nodes[4], { amount: 1, denomination: 'USD'})
+initializePayment(network.nodes[5], network.nodes[4], { amount: 1, denomination: 'USD'})
