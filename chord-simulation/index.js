@@ -1,7 +1,8 @@
 const sha3 = require('js-sha3')
+const m = 10
 
 function hashFn (x) {
-  return sha3.keccak_224(x).slice(0, 10) // truncate for ease of reading
+  return sha3.keccak_224(x).slice(0, m) // truncate for ease of reading
 }
 
 function rand () {
@@ -41,9 +42,7 @@ function distribute (data, buckets) {
   return buckets
 }
 
-let histogram = distribute(arr, makeBuckets(0xffffffffff, 10))
-console.log(histogram)
-debugger
+
 
 let network = {
   nodes: {
